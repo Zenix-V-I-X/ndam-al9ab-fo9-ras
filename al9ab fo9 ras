@@ -1,0 +1,159 @@
+local Players = game:GetService("Players")
+local TagSubTitle = "Zenix dark joker"
+
+local RankData = {
+    Developers = {
+        ["Go2mohamed"] = true,
+        ["Go2yousef"] = true,
+    },
+    Admins = {
+        ["joo77xb"] = true,
+        ["adam_saadi8737"] = true,
+    },
+    Special = {
+        ["m7mad9113"] = true,
+        ["DARK_LOP3"] = true,
+    },
+    Assistants = {
+        ["CRAZY_TPS2"] = true,
+    },
+    ImportantMembers = {
+        ["roggfdtc22"] = true,
+        ["Rohim38206"] = true,
+        ["im_rawab"] = true,
+        ["saraaaal279"] = true,
+        ["youssef3423samyt"] = true,
+        ["ajwyxbwmxbbs"] = true,
+        ["rohim38206"] = true,
+        ["hsush527"] = true,
+        ["srufguyifi"] = true,
+        ["FLM176"] = true,
+        ["Levi_onXtop"] = true,
+    }
+}
+
+local SpecialTitles = {
+    ["m7mad9113"] = "اخوي الغالي",
+    ["DARK_LOP3"] = "اخوي الغالي",
+}
+
+local function DestroyTag(Player)
+    if Player and Player.Character then
+        local Tag = Player.Character:FindFirstChild("RoyalTag")
+        if Tag then
+            Tag:Destroy()
+        end
+    end
+end
+
+local function ApplyRank(Player)
+    if not Player or not Player.Character then return end
+    local Head = Player.Character:FindFirstChild("Head")
+    if not Head then return end
+
+    local Title = nil
+    local Color = nil
+
+    if RankData.Developers[Player.Name] then
+        Title = "المطور زينكس"
+        Color = Color3.fromRGB(255, 0, 0)
+    elseif RankData.Admins[Player.Name] then
+        Title = "ادمن"
+        Color = Color3.fromRGB(255, 215, 0)
+    elseif RankData.Special[Player.Name] then
+        Title = SpecialTitles[Player.Name] or "اخوي الغالي"
+        Color = Color3.fromRGB(255, 0, 0)
+    elseif RankData.Assistants[Player.Name] then
+        Title = "مساعد"
+        Color = Color3.fromRGB(110, 0, 160)
+    elseif RankData.ImportantMembers[Player.Name] then
+        Title = "عضو مهم"
+        Color = Color3.fromRGB(0, 200, 255)
+    else
+        DestroyTag(Player)
+        return
+    end
+
+    DestroyTag(Player)
+
+    local Billboard = Instance.new("BillboardGui")
+    Billboard.Name = "RoyalTag"
+    Billboard.Adornee = Head
+    Billboard.Parent = Player.Character
+    Billboard.Size = UDim2.new(6, 0, 2.5, 0)
+    Billboard.StudsOffset = Vector3.new(0, 4, 0)
+    Billboard.AlwaysOnTop = true
+
+    local Frame = Instance.new("Frame", Billboard)
+    Frame.Size = UDim2.new(1, 0, 1, 0)
+    Frame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+    Frame.BackgroundTransparency = 0.2
+    Frame.BorderSizePixel = 0
+    Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 12)
+
+    local Stroke = Instance.new("UIStroke", Frame)
+    Stroke.Thickness = 3
+    Stroke.Color = Color
+    Stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+
+    local Gradient = Instance.new("UIGradient", Frame)
+    Gradient.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(30, 30, 30)),
+        ColorSequenceKeypoint.new(0.5, Color),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(30, 30, 30))
+    })
+
+    local TitleLabel = Instance.new("TextLabel", Frame)
+    TitleLabel.Size = UDim2.new(1, 0, 0.45, 0)
+    TitleLabel.Position = UDim2.new(0, 0, 0.1, 0)
+    TitleLabel.BackgroundTransparency = 1
+    TitleLabel.Text = "★ " .. Title .. " ★"
+    TitleLabel.TextColor3 = Color
+    TitleLabel.Font = Enum.Font.GothamBold
+    TitleLabel.TextScaled = true
+
+    local SubLabel = Instance.new("TextLabel", Frame)
+    SubLabel.Size = UDim2.new(0.9, 0, 0.3, 0)
+    SubLabel.Position = UDim2.new(0.05, 0, 0.55, 0)
+    SubLabel.BackgroundTransparency = 1
+    SubLabel.Text = TagSubTitle
+    SubLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    SubLabel.Font = Enum.Font.GothamBold
+    SubLabel.TextScaled = true
+end
+
+local function EnsureRank(Player)
+    if not Player or not Player.Character then return end
+    pcall(ApplyRank, Player)
+end
+
+for _, Player in ipairs(Players:GetPlayers()) do
+    Player.CharacterAdded:Connect(function()
+        task.wait(0.1)
+        EnsureRank(Player)
+    end)
+    if Player.Character then
+        EnsureRank(Player)
+    end
+end
+
+Players.PlayerAdded:Connect(function(Player)
+    Player.CharacterAdded:Connect(function()
+        task.wait(0.1)
+        EnsureRank(Player)
+    end)
+    if Player.Character then
+        EnsureRank(Player)
+    end
+end)
+
+task.spawn(function()
+    while true do
+        for _, Player in ipairs(Players:GetPlayers()) do
+            if Player.Character then
+                EnsureRank(Player)
+            end
+        end
+        task.wait(1)
+    end
+end)
