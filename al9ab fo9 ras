@@ -1,3 +1,4 @@
+-- مش عيب عليك تدخل حاجتي لو قدها تعالا اكتبلي في خاص انك فكيته
 local Players = game:GetService("Players")
 local TagSubTitle = "Zenix dark joker"
 
@@ -29,6 +30,7 @@ local RankData = {
         ["srufguyifi"] = true,
         ["FLM176"] = true,
         ["Levi_onXtop"] = true,
+        ["ANFNTI_999"] = true,
     }
 }
 
@@ -37,49 +39,36 @@ local SpecialTitles = {
     ["DARK_LOP3"] = "اخوي الغالي",
 }
 
-local function DestroyTag(Player)
-    if Player and Player.Character then
-        local Tag = Player.Character:FindFirstChild("RoyalTag")
-        if Tag then
-            Tag:Destroy()
-        end
+local RecognizedPlayers = {}
+
+local function CheckEligibility(Player)
+    local Name = Player.Name
+    if RankData.Developers[Name] then
+        RecognizedPlayers[Player] = {Title = "المطور زينكس", Color = Color3.fromRGB(255, 0, 0)}
+    elseif RankData.Admins[Name] then
+        RecognizedPlayers[Player] = {Title = "ادمن", Color = Color3.fromRGB(255, 215, 0)}
+    elseif RankData.Special[Name] then
+        RecognizedPlayers[Player] = {Title = SpecialTitles[Name] or "اخوي الغالي", Color = Color3.fromRGB(255, 0, 0)}
+    elseif RankData.Assistants[Name] then
+        RecognizedPlayers[Player] = {Title = "مساعد", Color = Color3.fromRGB(110, 0, 160)}
+    elseif RankData.ImportantMembers[Name] then
+        RecognizedPlayers[Player] = {Title = "عضو مهم", Color = Color3.fromRGB(0, 200, 255)}
     end
 end
 
-local function ApplyRank(Player)
-    if not Player or not Player.Character then return end
-    local Head = Player.Character:FindFirstChild("Head")
+local function ApplyRank(Player, Character)
+    local Data = RecognizedPlayers[Player]
+    if not Data then return end
+
+    local Head = Character:WaitForChild("Head", 5)
     if not Head then return end
 
-    local Title = nil
-    local Color = nil
-
-    if RankData.Developers[Player.Name] then
-        Title = "المطور زينكس"
-        Color = Color3.fromRGB(255, 0, 0)
-    elseif RankData.Admins[Player.Name] then
-        Title = "ادمن"
-        Color = Color3.fromRGB(255, 215, 0)
-    elseif RankData.Special[Player.Name] then
-        Title = SpecialTitles[Player.Name] or "اخوي الغالي"
-        Color = Color3.fromRGB(255, 0, 0)
-    elseif RankData.Assistants[Player.Name] then
-        Title = "مساعد"
-        Color = Color3.fromRGB(110, 0, 160)
-    elseif RankData.ImportantMembers[Player.Name] then
-        Title = "عضو مهم"
-        Color = Color3.fromRGB(0, 200, 255)
-    else
-        DestroyTag(Player)
-        return
-    end
-
-    DestroyTag(Player)
+    if Character:FindFirstChild("RoyalTag") then return end
 
     local Billboard = Instance.new("BillboardGui")
     Billboard.Name = "RoyalTag"
     Billboard.Adornee = Head
-    Billboard.Parent = Player.Character
+    Billboard.Parent = Character
     Billboard.Size = UDim2.new(6, 0, 2.5, 0)
     Billboard.StudsOffset = Vector3.new(0, 4, 0)
     Billboard.AlwaysOnTop = true
@@ -93,13 +82,13 @@ local function ApplyRank(Player)
 
     local Stroke = Instance.new("UIStroke", Frame)
     Stroke.Thickness = 3
-    Stroke.Color = Color
+    Stroke.Color = Data.Color
     Stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 
     local Gradient = Instance.new("UIGradient", Frame)
     Gradient.Color = ColorSequence.new({
         ColorSequenceKeypoint.new(0, Color3.fromRGB(30, 30, 30)),
-        ColorSequenceKeypoint.new(0.5, Color),
+        ColorSequenceKeypoint.new(0.5, Data.Color),
         ColorSequenceKeypoint.new(1, Color3.fromRGB(30, 30, 30))
     })
 
@@ -107,8 +96,8 @@ local function ApplyRank(Player)
     TitleLabel.Size = UDim2.new(1, 0, 0.45, 0)
     TitleLabel.Position = UDim2.new(0, 0, 0.1, 0)
     TitleLabel.BackgroundTransparency = 1
-    TitleLabel.Text = "★ " .. Title .. " ★"
-    TitleLabel.TextColor3 = Color
+    TitleLabel.Text = "★ " .. Data.Title .. " ★"
+    TitleLabel.TextColor3 = Data.Color
     TitleLabel.Font = Enum.Font.GothamBold
     TitleLabel.TextScaled = true
 
@@ -122,38 +111,29 @@ local function ApplyRank(Player)
     SubLabel.TextScaled = true
 end
 
-local function EnsureRank(Player)
-    if not Player or not Player.Character then return end
-    pcall(ApplyRank, Player)
+local function SetupPlayer(Player)
+    CheckEligibility(Player)
+
+    if RecognizedPlayers[Player] then
+        Player.CharacterAdded:Connect(function(Character)
+            task.wait(0.1)
+            ApplyRank(Player, Character)
+        end)
+
+        if Player.Character then
+            ApplyRank(Player, Player.Character)
+        end
+    end
 end
 
 for _, Player in ipairs(Players:GetPlayers()) do
-    Player.CharacterAdded:Connect(function()
-        task.wait(0.1)
-        EnsureRank(Player)
-    end)
-    if Player.Character then
-        EnsureRank(Player)
-    end
+    SetupPlayer(Player)
 end
 
-Players.PlayerAdded:Connect(function(Player)
-    Player.CharacterAdded:Connect(function()
-        task.wait(0.1)
-        EnsureRank(Player)
-    end)
-    if Player.Character then
-        EnsureRank(Player)
-    end
-end)
+Players.PlayerAdded:Connect(SetupPlayer)
 
-task.spawn(function()
-    while true do
-        for _, Player in ipairs(Players:GetPlayers()) do
-            if Player.Character then
-                EnsureRank(Player)
-            end
-        end
-        task.wait(1)
+Players.PlayerRemoving:Connect(function(Player)
+    if RecognizedPlayers[Player] then
+        RecognizedPlayers[Player] = nil
     end
 end)
