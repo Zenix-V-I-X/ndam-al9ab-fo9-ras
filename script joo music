@@ -1,0 +1,924 @@
+-- الخدمات الأساسية
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local SoundService = game:GetService("SoundService")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
+-- صوت الترحيب
+local welcomeSound = Instance.new("Sound")
+welcomeSound.SoundId = "rbxassetid://4503761646"
+welcomeSound.Volume = 1
+welcomeSound.Looped = false
+welcomeSound.Parent = SoundService
+welcomeSound:Play()
+
+-- استدعاء المكتبة
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/Zenix-V-I-X/Zenix-vd/refs/heads/main/mktabit%20joo%20music"))()
+
+----------------------------------------------------
+-- التبويب الأول: الحقوق
+----------------------------------------------------
+local Tab = Library:CreateTab("الحقوق")
+
+Tab:AddSection("الحقوق")
+
+Tab:AddButton({
+    Title = "حقوق المطور Zenix و joo الى سكربت joo music",
+    Callback = function() end
+})
+
+Tab:AddButton({
+    Title = "المطور الرئيسي لفكرة سكربت اغاني المطور joo",
+    Callback = function() end
+})
+
+Tab:AddButton({
+    Title = "المطور صنع الواجهة و الالقاب بالكامل المطور Zenix",
+    Callback = function() end
+})
+
+Tab:AddButton({
+    Title = "جميع الاغاني الاجنبيه بنسبة 80% من المطور joo",
+    Callback = function() end
+})
+
+Tab:AddButton({
+    Title = "جميع الاغاني العربيه بنسبة 80% من المطور Zenix",
+    Callback = function() end
+})
+
+Tab:AddButton({
+    Title = "جميع التبويبات مصنعه وليست مسروقه",
+    Callback = function() end
+})
+
+Tab:AddButton({
+    Title = "التبويبات متصنعه بواسطة Zenix و joo",
+    Callback = function() end
+})
+
+Tab:AddButton({
+    Title = "الرتب تبدأ من المطور، الادمن، المساعد، عضو مهم، عضو",
+    Callback = function() end
+})
+
+Tab:AddButton({
+    Title = "اذا تريد رتبه اصنع فيديو عن انجاز صنعه في السكربت مثل مشاهدات",
+    Callback = function() end
+})
+
+Tab:AddButton({
+    Title = "الرتب التي تعطى للناس لقب مثل tik toker او اسمه",
+    Callback = function() end
+})
+
+Tab:AddButton({
+    Title = "هذا هو تيك توك Zenix للتواصل معه وتقديم الرتب",
+    Callback = function() end
+})
+
+Tab:AddButton({
+    Title = "tiktok.com/@zenix_xlm",
+    Callback = function()
+        setclipboard("tiktok.com/@zenix_xlm")
+    end
+})
+
+Tab:AddButton({
+    Title = "سيرفر الديسكورد بنتجمع فيه وكمان فيه فك تشفير للمطورين",
+    Callback = function() end
+})
+
+Tab:AddButton({
+    Title = "https://discord.gg/reFFNKH9Z",
+    Callback = function()
+        setclipboard("https://discord.gg/reFFNKH9Z")
+    end
+})
+
+----------------------------------------------------
+-- التبويب الثاني: اغاني gamepass
+----------------------------------------------------
+local playMode = "scooter"
+local currentMusicID = ""
+
+local function playScooterRegular(id)
+    pcall(function()
+        local remote = ReplicatedStorage:WaitForChild("RE", 2):FindFirstChild("1NoMoto1rVehicle1s")
+        if remote then
+            remote:FireServer("Segway")
+            task.wait(0.3)
+            remote:FireServer("PickingScooterMusicText", tostring(id))
+        end
+    end)
+end
+
+local function playScooterPremium(id)
+    pcall(function()
+        local remote = ReplicatedStorage:WaitForChild("RE", 2):FindFirstChild("1NoMoto1rVehicle1s")
+        if remote then
+            remote:FireServer("SegwaySmall")
+            task.wait(0.3)
+            remote:FireServer("PickingScooterMusicText", tostring(id))
+        end
+    end)
+end
+
+local function playHouse(id)
+    pcall(function()
+        local RE = ReplicatedStorage:FindFirstChild("RE")
+        if RE then
+            local houseRemote = RE:FindFirstChild("1Player1sHous1e")
+            if houseRemote then
+                houseRemote:FireServer("PickHouseMusicText", tostring(id), nil, true)
+            end
+        end
+    end)
+end
+
+local function playBoombox(id)
+    pcall(function()
+        local RE = ReplicatedStorage:FindFirstChild("RE")
+        if RE then
+            local toolRemote = RE:FindFirstChild("PlayerToolEvent")
+            if toolRemote then
+                toolRemote:FireServer("ToolMusicText", tostring(id), nil, true)
+            end
+        end
+    end)
+end
+
+local function playMusicEverywhere(id)
+    playScooterPremium(id)
+    playHouse(id)
+    playBoombox(id)
+end
+
+local function playMusic(id)
+    if not id or id == "" then return end
+    if playMode == "scooter" then
+        playScooterRegular(id)
+    elseif playMode == "premium" then
+        playScooterPremium(id)
+    elseif playMode == "house" then
+        playHouse(id)
+    elseif playMode == "boombox" then
+        playBoombox(id)
+    elseif playMode == "everywhere" then
+        playMusicEverywhere(id)
+    end
+end
+
+local function removeScooter()
+    pcall(function()
+        local remote = ReplicatedStorage:WaitForChild("RE", 2):FindFirstChild("1NoMoto1rVehicle1s")
+        if remote then
+            remote:FireServer("Delete NoMotorVehicle")
+        end
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+            LocalPlayer.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Running)
+        end
+    end)
+end
+
+local rainbowScooterEnabled = false
+local function toggleRainbowScooter(v)
+    rainbowScooterEnabled = v
+    if v then
+        task.spawn(function()
+            while rainbowScooterEnabled do
+                local hue = tick() % 5 / 5
+                local color = Color3.fromHSV(hue, 1, 1)
+                pcall(function()
+                    local RE = ReplicatedStorage:WaitForChild("RE")
+                    if RE then
+                        local carRemote = RE:WaitForChild("1Player1sCa1r")
+                        if carRemote then
+                            carRemote:FireServer("NoMotorColor", color)
+                        end
+                    end
+                    local Remotes = ReplicatedStorage:WaitForChild("Remotes")
+                    if Remotes then
+                        local underglow = Remotes:WaitForChild("SetUnderglowColor")
+                        if underglow then
+                            underglow:InvokeServer(1, color)
+                        end
+                    end
+                end)
+                task.wait(0.1)
+            end
+        end)
+    end
+end
+
+local function takeBoombox()
+    pcall(function()
+        local remote = ReplicatedStorage:FindFirstChild("RE")
+        if remote then
+            local toolRemote = remote:FindFirstChild("1Too1l")
+            if toolRemote then
+                toolRemote:InvokeServer("PickingTools", "Boombox")
+            end
+        end
+    end)
+end
+
+local MusicTab = Library:CreateTab("اغاني gamepass")
+
+MusicTab:AddSection("اختار الوضع والطريقة")
+MusicTab:AddToggle({Title = "سكوتر عادي", Default = true, Callback = function(v) if v then playMode = "scooter" end end})
+MusicTab:AddToggle({Title = "سكوتر بريميوم", Default = false, Callback = function(v) if v then playMode = "premium" end end})
+MusicTab:AddToggle({Title = "بيت", Default = false, Callback = function(v) if v then playMode = "house" end end})
+MusicTab:AddToggle({Title = "بومبوكس", Default = false, Callback = function(v) if v then playMode = "boombox" end end})
+MusicTab:AddToggle({Title = "كل الأماكن", Default = false, Callback = function(v) if v then playMode = "everywhere" end end})
+
+MusicTab:AddTextBox({Title = "ايدي الاغنية", Description = "ضع الايدي هنا...", Callback = function(v) currentMusicID = v end})
+
+MusicTab:AddButton({Title = "تشغيل سكوتر", Callback = function() if currentMusicID ~= "" then playScooterPremium(currentMusicID) end end})
+MusicTab:AddButton({Title = "تشغيل بيت", Callback = function() if currentMusicID ~= "" then playHouse(currentMusicID) end end})
+MusicTab:AddButton({Title = "تشغيل بومبوكس", Callback = function() if currentMusicID ~= "" then playBoombox(currentMusicID) end end})
+MusicTab:AddButton({Title = "تشغيل كل الأماكن", Callback = function() if currentMusicID ~= "" then playMusicEverywhere(currentMusicID) end end})
+
+MusicTab:AddButton({Title = "أخذ أداة البومبوكس", Callback = takeBoombox})
+
+MusicTab:AddButton({Title = "حذف السكوتر", Callback = removeScooter})
+MusicTab:AddToggle({Title = "سكوتر قوس قزح", Default = false, Callback = toggleRainbowScooter})
+
+MusicTab:AddSection("اغاني عربية / عامة")
+MusicTab:AddButton({Title = "يقول الولد", Callback = function() playMusic("107178585445032") end})
+MusicTab:AddButton({Title = "ترتمي وسط الخطر", Callback = function() playMusic("112240853142302") end})
+MusicTab:AddButton({Title = "حنا الزمن طار", Callback = function() playMusic("91223173809939") end})
+MusicTab:AddButton({Title = "هبيك فيكي وجهي", Callback = function() playMusic("126784347964689") end})
+MusicTab:AddButton({Title = "اطفال و الجوع", Callback = function() playMusic("109959176513792") end})
+MusicTab:AddButton({Title = "ما ودي", Callback = function() playMusic("72738584902275") end})
+MusicTab:AddButton({Title = "من بشتكي", Callback = function() playMusic("71455394954902") end})
+MusicTab:AddButton({Title = "لا سامحك", Callback = function() playMusic("140251460855891") end})
+MusicTab:AddButton({Title = "اللي يصاحبك", Callback = function() playMusic("124407666161812") end})
+MusicTab:AddButton({Title = "قالوا المحبة دواء", Callback = function() playMusic("139577782919780") end})
+MusicTab:AddButton({Title = "بكرا لما يجي", Callback = function() playMusic("72215182167578") end})
+MusicTab:AddButton({Title = "احكي مع الله", Callback = function() playMusic("88119678765223") end})
+MusicTab:AddButton({Title = "صورة حلوة", Callback = function() playMusic("121463880944892") end})
+MusicTab:AddButton({Title = "مبحبش حد", Callback = function() playMusic("103753392891507") end})
+MusicTab:AddButton({Title = "سوا سوا", Callback = function() playMusic("96851518139813") end})
+MusicTab:AddButton({Title = "جمالها حصري", Callback = function() playMusic("121794055315417") end})
+MusicTab:AddButton({Title = "متقولش ربي", Callback = function() playMusic("128944885919441") end})
+MusicTab:AddButton({Title = "بهجة", Callback = function() playMusic("122435042374498") end})
+MusicTab:AddButton({Title = "وانت صغير", Callback = function() playMusic("130028180657610") end})
+MusicTab:AddButton({Title = "اللي عايز", Callback = function() playMusic("72120834501000") end})
+MusicTab:AddButton({Title = "انا مش بعيد", Callback = function() playMusic("88320558572596") end})
+MusicTab:AddButton({Title = "مستعد", Callback = function() playMusic("82047945085802") end})
+MusicTab:AddButton({Title = "متسأليش", Callback = function() playMusic("114807847162411") end})
+MusicTab:AddButton({Title = "قلبي الك", Callback = function() playMusic("138011619495293") end})
+MusicTab:AddButton({Title = "وردة", Callback = function() playMusic("134067986890446") end})
+MusicTab:AddButton({Title = "جمالك", Callback = function() playMusic("114863567321217") end})
+MusicTab:AddButton({Title = "حسي بالقلب مغربي", Callback = function() playMusic("118320829215981") end})
+MusicTab:AddButton({Title = "كردية", Callback = function() playMusic("129546179244845") end})
+MusicTab:AddButton({Title = "انساها مغربي", Callback = function() playMusic("77163359306014") end})
+
+MusicTab:AddSection("اغاني عراقية")
+MusicTab:AddButton({Title = "راب عراقي", Callback = function() playMusic("116272643488592") end})
+MusicTab:AddButton({Title = "اخذت بدنيا تعناط ودروس", Callback = function() playMusic("112254940188047") end})
+MusicTab:AddButton({Title = "شراره", Callback = function() playMusic("81023003196738") end})
+MusicTab:AddButton({Title = "عراقي", Callback = function() playMusic("116815742960163") end})
+MusicTab:AddButton({Title = "عراقي حب", Callback = function() playMusic("105956659839019") end})
+MusicTab:AddButton({Title = "فنان", Callback = function() playMusic("130012558337510") end})
+MusicTab:AddButton({Title = "فنان راب 2", Callback = function() playMusic("80945632184135") end})
+MusicTab:AddButton({Title = "عراقي ابشرك", Callback = function() playMusic("82396938710161") end})
+MusicTab:AddButton({Title = "ميت انا من فراقك", Callback = function() playMusic("98313375960954") end})
+MusicTab:AddButton({Title = "دم حزني", Callback = function() playMusic("99123490695024") end})
+MusicTab:AddButton({Title = "الحجني يا شرطي", Callback = function() playMusic("120675895107276") end})
+MusicTab:AddButton({Title = "الف صلاه عليك يا محمد", Callback = function() playMusic("103786200526639") end})
+MusicTab:AddButton({Title = "ريمسك عراقي", Callback = function() playMusic("136909019669593") end})
+MusicTab:AddButton({Title = "شعر عراقي", Callback = function() playMusic("83309655997452") end})
+MusicTab:AddButton({Title = "وش علينا من الناس", Callback = function() playMusic("81808954656328") end})
+MusicTab:AddButton({Title = "ازعاج عراقي", Callback = function() playMusic("127840997774724") end})
+MusicTab:AddButton({Title = "عراقي حزين", Callback = function() playMusic("106271890575602") end})
+MusicTab:AddButton({Title = "عود عراقي", Callback = function() playMusic("94546035218751") end})
+MusicTab:AddButton({Title = "قول الصواري نا", Callback = function() playMusic("135009652401688") end})
+MusicTab:AddButton({Title = "قررنا رحيلك", Callback = function() playMusic("87510423075068") end})
+MusicTab:AddButton({Title = "حلوة", Callback = function() playMusic("77951452994771") end})
+MusicTab:AddButton({Title = "سبحيني بالمشاعر", Callback = function() playMusic("80017487709494") end})
+MusicTab:AddButton({Title = "غرقت بحبو", Callback = function() playMusic("118850051381032") end})
+MusicTab:AddButton({Title = "تراني سكران", Callback = function() playMusic("111811908070601") end})
+MusicTab:AddButton({Title = "ازعاج صردع", Callback = function() playMusic("72369698229901") end})
+MusicTab:AddButton({Title = "ما اريدك بعد تهواني", Callback = function() playMusic("135911328646170") end})
+MusicTab:AddButton({Title = "عود قوي", Callback = function() playMusic("89535137402880") end})
+MusicTab:AddButton({Title = "عود جميل", Callback = function() playMusic("116698448296371") end})
+MusicTab:AddButton({Title = "وكر العصفور", Callback = function() playMusic("102614859260356") end})
+MusicTab:AddButton({Title = "رقص للعرسان", Callback = function() playMusic("107582806271620") end})
+MusicTab:AddButton({Title = "عزف يا دنيا", Callback = function() playMusic("75997967186313") end})
+MusicTab:AddButton({Title = "ليبي بعد سنين", Callback = function() playMusic("114138252573975") end})
+MusicTab:AddButton({Title = "كل عقلك", Callback = function() playMusic("122774951440401") end})
+MusicTab:AddButton({Title = "ردوا الله اكبر", Callback = function() playMusic("106330590409106") end})
+MusicTab:AddButton({Title = "يم عيونك / هاجر", Callback = function() playMusic("110078712223926") end})
+
+MusicTab:AddSection("اغاني عربية / مصرية")
+MusicTab:AddButton({Title = "مصرية", Callback = function() playMusic("128624259208020") end})
+MusicTab:AddButton({Title = "رمضان برودكشن", Callback = function() playMusic("123555966146480") end})
+MusicTab:AddButton({Title = "دمرتي حياتي", Callback = function() playMusic("124482316940059") end})
+MusicTab:AddButton({Title = "راب", Callback = function() playMusic("8559374146822") end})
+MusicTab:AddButton({Title = "جامدة", Callback = function() playMusic("106941936452890") end})
+MusicTab:AddButton({Title = "جامدة 2", Callback = function() playMusic("107471923441527") end})
+MusicTab:AddButton({Title = "تصدق كرهتك", Callback = function() playMusic("113478978326245") end})
+MusicTab:AddButton({Title = "كارزما وفد شي ينحب", Callback = function() playMusic("89189069089618") end})
+MusicTab:AddButton({Title = "الله الله يا جمالك", Callback = function() playMusic("102463539890606") end})
+MusicTab:AddButton({Title = "اكبر غلطه بحياتي", Callback = function() playMusic("127085435747898") end})
+MusicTab:AddButton({Title = "اه يا حلو", Callback = function() playMusic("93620598835551") end})
+MusicTab:AddButton({Title = "اتركيني جامدة", Callback = function() playMusic("131870431323817") end})
+MusicTab:AddButton({Title = "سيبتيني فين كلامك", Callback = function() playMusic("136793917774554") end})
+MusicTab:AddButton({Title = "ليه جي", Callback = function() playMusic("92304349905750") end})
+MusicTab:AddButton({Title = "فارس سكر", Callback = function() playMusic("115153161936086") end})
+MusicTab:AddButton({Title = "هات الدكتور", Callback = function() playMusic("8776769631") end})
+MusicTab:AddButton({Title = "اغنية بنت", Callback = function() playMusic("118359337959122") end})
+MusicTab:AddButton({Title = "راب فكني منها", Callback = function() playMusic("125880160870644") end})
+MusicTab:AddButton({Title = "اول مرة حياتي تورد", Callback = function() playMusic("122957821960545") end})
+MusicTab:AddButton({Title = "علي كيفك", Callback = function() playMusic("123487073954032") end})
+MusicTab:AddButton({Title = "بخطار بس قني بروك", Callback = function() playMusic("125693571824719") end})
+MusicTab:AddButton({Title = "وكر العصفور مهموم", Callback = function() playMusic("139296082581664") end})
+MusicTab:AddButton({Title = "يا حلوة", Callback = function() playMusic("126351447107230") end})
+MusicTab:AddButton({Title = "عايز ارضيكي", Callback = function() playMusic("97258693395534") end})
+MusicTab:AddButton({Title = "بلدي", Callback = function() playMusic("137320322714946") end})
+MusicTab:AddButton({Title = "ليلة عربية", Callback = function() playMusic("120190715989820") end})
+MusicTab:AddButton({Title = "علي تحني يا دنیا", Callback = function() playMusic("124123680327164") end})
+MusicTab:AddButton({Title = "سلمولي", Callback = function() playMusic("73294187923231") end})
+MusicTab:AddButton({Title = "قلبو انا", Callback = function() playMusic("120161135152444") end})
+MusicTab:AddButton({Title = "اقول بحبك", Callback = function() playMusic("130580284231852") end})
+MusicTab:AddButton({Title = "بره المجره", Callback = function() playMusic("134955716549974") end})
+MusicTab:AddButton({Title = "دا حب", Callback = function() playMusic("106099918876009") end})
+MusicTab:AddButton({Title = "راب 76am", Callback = function() playMusic("86238849012344") end})
+MusicTab:AddButton({Title = "بالك مع مين يلي شغلني", Callback = function() playMusic("120548366361770") end})
+MusicTab:AddButton({Title = "حكايتي مع الكيف", Callback = function() playMusic("131810095264340") end})
+MusicTab:AddButton({Title = "ملعين دي للعين دي ياقمر", Callback = function() playMusic("139003933915246") end})
+MusicTab:AddButton({Title = "دنيا وهيش صباطه", Callback = function() playMusic("112815389315216") end})
+MusicTab:AddButton({Title = "ثقه في الله نجاح", Callback = function() playMusic("126748359267140") end})
+MusicTab:AddButton({Title = "يااخويا فراقاك", Callback = function() playMusic("115550274410730") end})
+MusicTab:AddButton({Title = "ريمكس بأسم مصر", Callback = function() playMusic("127960275435157") end})
+MusicTab:AddButton({Title = "صوت حرب اخبار", Callback = function() playMusic("85162558302997") end})
+MusicTab:AddButton({Title = "خلصت خلاص", Callback = function() playMusic("94497428805146") end})
+MusicTab:AddButton({Title = "وشوشت عليك الودع", Callback = function() playMusic("109678010106606") end})
+MusicTab:AddButton({Title = "سلام بوداع", Callback = function() playMusic("129616082137244") end})
+MusicTab:AddButton({Title = "اسوء تجربة", Callback = function() playMusic("125085759592554") end})
+MusicTab:AddButton({Title = "انا وحبيبي ام كلثوم", Callback = function() playMusic("133023306778467") end})
+MusicTab:AddButton({Title = "دي مصر طبعاً", Callback = function() playMusic("103967481902580") end})
+
+MusicTab:AddSection("قصائد وشعر وشيلات")
+MusicTab:AddButton({Title = "ماذا قال البردوني حين بعث شعر", Callback = function() playMusic("121551967633757") end})
+MusicTab:AddButton({Title = "قاف ومعاني شعر حمودي سعد", Callback = function() playMusic("84391237544406") end})
+MusicTab:AddButton({Title = "شيلة المقصات - خليل الشبرمي", Callback = function() playMusic("83309655997452") end})
+MusicTab:AddButton({Title = "من مكاني - حمودي بن سعد", Callback = function() playMusic("81724736472906") end})
+MusicTab:AddButton({Title = "فيني الذكرى - حمودي بن سعد", Callback = function() playMusic("122987541571683") end})
+MusicTab:AddButton({Title = "كتبت قاف - حمود بن سعد", Callback = function() playMusic("93325584867960") end})
+MusicTab:AddButton({Title = "بادي بالله - حمود بن سعد الشمري", Callback = function() playMusic("93727764687515") end})
+MusicTab:AddButton({Title = "شيلة طلال الرشيد - خليل", Callback = function() playMusic("103548350387613") end})
+MusicTab:AddButton({Title = "الشعر له مع صادق الوقت - حمودي", Callback = function() playMusic("71632005349409") end})
+MusicTab:AddButton({Title = "استثنائى - خليل الشبرمي", Callback = function() playMusic("85761608176187") end})
+MusicTab:AddButton({Title = "ياهلا وسهلا - حمود بن سعد", Callback = function() playMusic("136124389664355") end})
+MusicTab:AddButton({Title = "الهوى لو تمنى - سامر حايل", Callback = function() playMusic("104702974937114") end})
+MusicTab:AddButton({Title = "انسجمنا بلهوى - خالد السلامه", Callback = function() playMusic("114388215612067") end})
+MusicTab:AddButton({Title = "هل يسعدك - خالد السلامه", Callback = function() playMusic("91092704154935") end})
+MusicTab:AddButton({Title = "محمد وجهة ابهى من القمر", Callback = function() playMusic("111915220263938") end})
+
+MusicTab:AddSection("دينية وأناشيد وقرآن")
+MusicTab:AddButton({Title = "صلى عليك", Callback = function() playMusic("96350513745873") end})
+MusicTab:AddButton({Title = "قران", Callback = function() playMusic("75228291149543") end})
+MusicTab:AddButton({Title = "يا اجمل الانبياء", Callback = function() playMusic("95558570672066") end})
+MusicTab:AddButton({Title = "يا رايح المدينة", Callback = function() playMusic("113624682660870") end})
+MusicTab:AddButton({Title = "بسم الله", Callback = function() playMusic("108621294653117") end})
+MusicTab:AddButton({Title = "تبسم", Callback = function() playMusic("90746199853459") end})
+MusicTab:AddButton({Title = "تبسم 2", Callback = function() playMusic("84462606932320") end})
+MusicTab:AddButton({Title = "خير البرية", Callback = function() playMusic("130387868861288") end})
+MusicTab:AddButton({Title = "يا خالق الاكوان", Callback = function() playMusic("107814849078376") end})
+MusicTab:AddButton({Title = "بعد طه", Callback = function() playMusic("96707729194183") end})
+MusicTab:AddButton({Title = "علي شيعي", Callback = function() playMusic("70969698201901") end})
+MusicTab:AddButton({Title = "احلى كلمة", Callback = function() playMusic("74023750343124") end})
+MusicTab:AddButton({Title = "بيت النبي", Callback = function() playMusic("79401362038431") end})
+MusicTab:AddButton({Title = "الله هما", Callback = function() playMusic("97018921060930") end})
+MusicTab:AddButton({Title = "يا رمضان", Callback = function() playMusic("94251559614845") end})
+MusicTab:AddButton({Title = "خلي صلاتك", Callback = function() playMusic("71465231554402") end})
+MusicTab:AddButton({Title = "يا رب", Callback = function() playMusic("104530451796036") end})
+MusicTab:AddButton({Title = "ان جفاك الدهر - بدر النفيس", Callback = function() playMusic("91386854296473") end})
+MusicTab:AddButton({Title = "اللهم بلغنا ما نود - بدر النفيس", Callback = function() playMusic("88039573678140") end})
+MusicTab:AddButton({Title = "برد الشتاء", Callback = function() playMusic("132713506570643") end})
+MusicTab:AddButton({Title = "الانفال قرآن - محمود كركوكي", Callback = function() playMusic("98360569639974") end})
+MusicTab:AddButton({Title = "اغتنام الحياه النشيد المؤثر", Callback = function() playMusic("89056647532350") end})
+MusicTab:AddButton({Title = "قلبي يأن من البكاء", Callback = function() playMusic("121877881410265") end})
+MusicTab:AddButton({Title = "زينب زينب", Callback = function() playMusic("124255327150702") end})
+MusicTab:AddButton({Title = "دعاء لراحة القلب والسكينه", Callback = function() playMusic("82248223320669") end})
+MusicTab:AddButton({Title = "دعاء لدخول الجنه", Callback = function() playMusic("71539584136063") end})
+MusicTab:AddButton({Title = "دعاء لراحة القلب والسلام", Callback = function() playMusic("84598876922850") end})
+MusicTab:AddButton({Title = "ان الله وملائكته يصلون على النبي", Callback = function() playMusic("101097443700018") end})
+MusicTab:AddButton({Title = "لمثك كف الرسول - الحضرة", Callback = function() playMusic("79948876884237") end})
+MusicTab:AddButton({Title = "قصدك باب الرجا", Callback = function() playMusic("118201986719222") end})
+MusicTab:AddButton({Title = "الشيخ عبدالباري الثبيتي قرآن", Callback = function() playMusic("134362058291798") end})
+MusicTab:AddButton({Title = "وداع شعر الصيام", Callback = function() playMusic("140662936838483") end})
+MusicTab:AddButton({Title = "ابتهال ديني ياخير خلق الله", Callback = function() playMusic("131054284549593") end})
+MusicTab:AddButton({Title = "نحب محمد حبى", Callback = function() playMusic("110769804073238") end})
+
+MusicTab:AddSection("مقاطع وتفاعلات صوتیة")
+MusicTab:AddButton({Title = "واه بنت", Callback = function() playMusic("140621694430612") end})
+MusicTab:AddButton({Title = "اموتشك", Callback = function() playMusic("91592068403301") end})
+MusicTab:AddButton({Title = "هاي بنت", Callback = function() playMusic("137286678153859") end})
+MusicTab:AddButton({Title = "ياي", Callback = function() playMusic("131184394702134") end})
+MusicTab:AddButton({Title = "ايزي ابلع", Callback = function() playMusic("112847640842699") end})
+MusicTab:AddButton({Title = "ولا تاكل ولا تشرب", Callback = function() playMusic("73819155183299") end})
+MusicTab:AddButton({Title = "ماذا تريد", Callback = function() playMusic("136789813621839") end})
+MusicTab:AddButton({Title = "واو", Callback = function() playMusic("95139591685380") end})
+MusicTab:AddButton({Title = "نايس", Callback = function() playMusic("78280559086303") end})
+MusicTab:AddButton({Title = "i got this", Callback = function() playMusic("92223942503349") end})
+MusicTab:AddButton({Title = "Don't Touch", Callback = function() playMusic("76186807430383") end})
+MusicTab:AddButton({Title = "افضل ناس بعد محمد", Callback = function() playMusic("138175842253116") end})
+MusicTab:AddButton({Title = "امزين انقزتك", Callback = function() playMusic("120628790113766") end})
+MusicTab:AddButton({Title = "اطلاع برا كلب", Callback = function() playMusic("137698105050387") end})
+MusicTab:AddButton({Title = "لمون وكمون قفو ياممحون", Callback = function() playMusic("100387685825034") end})
+MusicTab:AddButton({Title = "عندك حمص بلحمه", Callback = function() playMusic("110644742579450") end})
+MusicTab:AddButton({Title = "يا كذاب", Callback = function() playMusic("7173348285") end})
+MusicTab:AddButton({Title = "يب هيز ديد بندر", Callback = function() playMusic("3007579524") end})
+MusicTab:AddButton({Title = "امبيه حبيبي شنو فيه؟", Callback = function() playMusic("7657178494") end})
+MusicTab:AddButton({Title = "محمد يا حيوااااان", Callback = function() playMusic("77213187479231") end})
+
+MusicTab:AddSection("أغانٍ منوعة وعشوائية")
+MusicTab:AddButton({Title = "تصميم فيديوهات", Callback = function() playMusic("9102332923") end})
+MusicTab:AddButton({Title = "ماذا نعمل يا احباب", Callback = function() playMusic("110581493098986") end})
+MusicTab:AddButton({Title = "قصة النجار و الملكه الجميله", Callback = function() playMusic("107066284447637") end})
+MusicTab:AddButton({Title = "نغمة عشوائية 1", Callback = function() playMusic("110499769951543") end})
+MusicTab:AddButton({Title = "نغمة عشوائية 2", Callback = function() playMusic("12058939975") end})
+MusicTab:AddButton({Title = "نغمة عشوائية 3", Callback = function() playMusic("129963257934687") end})
+MusicTab:AddButton({Title = "نغمة عشوائية 4", Callback = function() playMusic("124688308713895") end})
+MusicTab:AddButton({Title = "نغمة عشوائية 5", Callback = function() playMusic("122525489670033") end})
+MusicTab:AddButton({Title = "نغمة عشوائية 6", Callback = function() playMusic("88611661470391") end})
+MusicTab:AddButton({Title = "نغمة عشوائية 7", Callback = function() playMusic("114339730158889") end})
+MusicTab:AddButton({Title = "نغمة عشوائية 8", Callback = function() playMusic("88232201387507") end})
+MusicTab:AddButton({Title = "نغمة عشوائية 9", Callback = function() playMusic("766998985299412") end})
+MusicTab:AddButton({Title = "نغمة عشوائية 10", Callback = function() playMusic("103899260817392") end})
+MusicTab:AddButton({Title = "نغمة عشوائية 11", Callback = function() playMusic("85209271197446") end})
+MusicTab:AddButton({Title = "نغمة عشوائية 12", Callback = function() playMusic("97653993295845") end})
+MusicTab:AddButton({Title = "نغمة عشوائية 13", Callback = function() playMusic("72918998227337") end})
+MusicTab:AddButton({Title = "نغمة عشوائية 14", Callback = function() playMusic("76221024204234") end})
+MusicTab:AddButton({Title = "نغمة عشوائية 15", Callback = function() playMusic("119372546759640") end})
+MusicTab:AddButton({Title = "نغمة عشوائية 16", Callback = function() playMusic("95583505197638") end})
+MusicTab:AddButton({Title = "نغمة عشوائية 17", Callback = function() playMusic("126422410489839") end})
+MusicTab:AddButton({Title = "نغمة عشوائية 18", Callback = function() playMusic("13384659639141547") end})
+MusicTab:AddButton({Title = "جاني كلام جلسه", Callback = function() playMusic("98982591392999") end})
+MusicTab:AddButton({Title = "نغمة عشوائية 19", Callback = function() playMusic("72213510878866") end})
+MusicTab:AddButton({Title = "شيل عينك ياحسود", Callback = function() playMusic("102430482526115") end})
+MusicTab:AddButton({Title = "معزوفة هادئة", Callback = function() playMusic("83170106164487") end})
+MusicTab:AddButton({Title = "يا مهاجره", Callback = function() playMusic("119001496064932") end})
+MusicTab:AddButton({Title = "سعوديه شمس الملاعب", Callback = function() playMusic("138373166260460") end})
+MusicTab:AddButton({Title = "سنه حلوه يا محمد", Callback = function() playMusic("129491482765292") end})
+MusicTab:AddButton({Title = "يا بيروت تهانينا", Callback = function() playMusic("107457657654589") end})
+MusicTab:AddButton({Title = "حبة صور ساكتين", Callback = function() playMusic("102801815415949") end})
+MusicTab:AddButton({Title = "العدل فوق الجميع وبيعشقو المخلوق", Callback = function() playMusic("83883382498273") end})
+MusicTab:AddButton({Title = "عيون الريم", Callback = function() playMusic("95680334250384") end})
+MusicTab:AddButton({Title = "مهموم بنت", Callback = function() playMusic("100121498303469") end})
+MusicTab:AddButton({Title = "نهاية الطريقة", Callback = function() playMusic("100882656730515") end})
+MusicTab:AddButton({Title = "موطني فلسطيني", Callback = function() playMusic("138583149160414") end})
+MusicTab:AddButton({Title = "ميلي وبخصرك ميلي", Callback = function() playMusic("74895850882339") end})
+MusicTab:AddButton({Title = "صوامت مغربيه", Callback = function() playMusic("102091364927054") end})
+MusicTab:AddButton({Title = "القطب احمد رفاعي", Callback = function() playMusic("105126185875859") end})
+MusicTab:AddButton({Title = "اسمحيلي يالغرام يوسف شافي", Callback = function() playMusic("127999058966500") end})
+MusicTab:AddButton({Title = "يا باز ضاقت الحضره الصوفيه", Callback = function() playMusic("124404454626239") end})
+MusicTab:AddButton({Title = "اغنية حنه حنه ريمكس", Callback = function() playMusic("112890448960292") end})
+MusicTab:AddButton({Title = "في طلعت عشيه", Callback = function() playMusic("98416613253861") end})
+MusicTab:AddButton({Title = "اغنية اسمها نار قويه", Callback = function() playMusic("106884739971587") end})
+MusicTab:AddButton({Title = "مجس حجازي", Callback = function() playMusic("77690160133821") end})
+MusicTab:AddButton({Title = "سعوديه منتخبنا هلا", Callback = function() playMusic("99494502823632") end})
+MusicTab:AddButton({Title = "فرحة العيد", Callback = function() playMusic("77452598859482") end})
+MusicTab:AddButton({Title = "عذرا بلاد المسلمين", Callback = function() playMusic("108752514960625") end})
+MusicTab:AddButton({Title = "امشي على درب الامل", Callback = function() playMusic("138139711221488") end})
+MusicTab:AddButton({Title = "عمار يا بلادي", Callback = function() playMusic("86706132338418") end})
+MusicTab:AddButton({Title = "جيتنا بدون موعد", Callback = function() playMusic("89965141198892") end})
+MusicTab:AddButton({Title = "أضحك", Callback = function() playMusic("78922654701699") end})
+MusicTab:AddButton({Title = "ماعندي سواك", Callback = function() playMusic("115088776635835") end})
+MusicTab:AddButton({Title = "عود تركي تقطيع", Callback = function() playMusic("95429843300500") end})
+
+MusicTab:AddSection("اغاني اجنبية")
+MusicTab:AddButton({Title = "اجنبية", Callback = function() playMusic("70782176012619") end})
+MusicTab:AddButton({Title = "اجنبي حزين", Callback = function() playMusic("72320758533508") end})
+MusicTab:AddButton({Title = "my money", Callback = function() playMusic("1846687233") end})
+MusicTab:AddButton({Title = "ريمكس", Callback = function() playMusic("120871403922972") end})
+MusicTab:AddButton({Title = "فونك GTA", Callback = function() playMusic("109337680029292") end})
+MusicTab:AddButton({Title = "فونك قوي", Callback = function() playMusic("138361625716987") end})
+MusicTab:AddButton({Title = "كرسمس", Callback = function() playMusic("135528953872601") end})
+MusicTab:AddButton({Title = "حلوة 1", Callback = function() playMusic("130721206402716") end})
+MusicTab:AddButton({Title = "حلوة 2", Callback = function() playMusic("136869502216760") end})
+MusicTab:AddButton({Title = "قوية", Callback = function() playMusic("103288558732219") end})
+MusicTab:AddButton({Title = "فونك", Callback = function() playMusic("111205815697819") end})
+MusicTab:AddButton({Title = "جامدة 1", Callback = function() playMusic("127775034804421") end})
+MusicTab:AddButton({Title = "جامدة 2", Callback = function() playMusic("135454681412242") end})
+MusicTab:AddButton({Title = "جامدة 3", Callback = function() playMusic("127491720343331") end})
+MusicTab:AddButton({Title = "فونك خطير", Callback = function() playMusic("92165865063521") end})
+MusicTab:AddButton({Title = "break it down", Callback = function() playMusic("105210695336144") end})
+MusicTab:AddButton({Title = "فونك ماريو", Callback = function() playMusic("122192366231455") end})
+MusicTab:AddButton({Title = "ترند تيك توك", Callback = function() playMusic("106185171358009") end})
+MusicTab:AddButton({Title = "ترند تيك توك 2", Callback = function() playMusic("99695831392938") end})
+MusicTab:AddButton({Title = "ريمكس اجنبي", Callback = function() playMusic("92959057847076") end})
+MusicTab:AddButton({Title = "فونك DJ", Callback = function() playMusic("76312991186384") end})
+MusicTab:AddButton({Title = "افخم فونك", Callback = function() playMusic("17647322226") end})
+MusicTab:AddButton({Title = "فونك غضب", Callback = function() playMusic("115859025716354") end})
+MusicTab:AddButton({Title = "فونك عالمي", Callback = function() playMusic("76578817848504") end})
+MusicTab:AddButton({Title = "فونك ممتاز", Callback = function() playMusic("102402883551679") end})
+MusicTab:AddButton({Title = "فونك ازعاج", Callback = function() playMusic("85682109892034") end})
+MusicTab:AddButton({Title = "BATTLE OF EGYPT JumpSTYLE", Callback = function() playMusic("98965852907043") end})
+MusicTab:AddButton({Title = "LAZERSTYLERZ MIX", Callback = function() playMusic("72205284895340") end})
+MusicTab:AddButton({Title = "JUMPSTYLE 2003", Callback = function() playMusic("133557915783857") end})
+MusicTab:AddButton({Title = "MAYHEM EXEC", Callback = function() playMusic("76333126810079") end})
+MusicTab:AddButton({Title = "LOST", Callback = function() playMusic("106586241621814") end})
+MusicTab:AddButton({Title = "CRYPTDUST", Callback = function() playMusic("138397903891342") end})
+MusicTab:AddButton({Title = "JumpStyling", Callback = function() playMusic("99352274208551") end})
+MusicTab:AddButton({Title = "JUMPSTYLE LORD", Callback = function() playMusic("94533013083491") end})
+MusicTab:AddButton({Title = "HOLLOW DISTORTION", Callback = function() playMusic("106489098327460") end})
+MusicTab:AddButton({Title = "2004ASHEN BOOTLeG", Callback = function() playMusic("135881205397136") end})
+MusicTab:AddButton({Title = "HEAVENLY JUMPSTYLE", Callback = function() playMusic("124956832051872") end})
+MusicTab:AddButton({Title = "MONTAGEM TENTA", Callback = function() playMusic("95799488312338") end})
+MusicTab:AddButton({Title = "MONTAGEM E", Callback = function() playMusic("73211638025913") end})
+MusicTab:AddButton({Title = "MONTAGEM DO KARMA", Callback = function() playMusic("79148752172118") end})
+MusicTab:AddButton({Title = "DJ MONTAGEM FUNK", Callback = function() playMusic("80640214873696") end})
+MusicTab:AddButton({Title = "MONTAGEM TSUNAMI GIGANTE", Callback = function() playMusic("107424491541808") end})
+MusicTab:AddButton({Title = "MONTAGEM MARIO", Callback = function() playMusic("122192366231455") end})
+MusicTab:AddButton({Title = "PASSINHO BEM SOLTO", Callback = function() playMusic("106185171358009") end})
+MusicTab:AddButton({Title = "MONTAGEM YOSHO HAI", Callback = function() playMusic("126971857595847") end})
+MusicTab:AddButton({Title = "Midnight Winter", Callback = function() playMusic("115590187881251") end})
+MusicTab:AddButton({Title = "Robot Phonkstep", Callback = function() playMusic("105300007125743") end})
+MusicTab:AddButton({Title = "BASS DA DA DA", Callback = function() playMusic("138410854139543") end})
+MusicTab:AddButton({Title = "Better off alone mix", Callback = function() playMusic("112439283898361") end})
+MusicTab:AddButton({Title = "Hunter Eyes", Callback = function() playMusic("139957878565852") end})
+MusicTab:AddButton({Title = "LOW CORTISOL", Callback = function() playMusic("110919391228823") end})
+MusicTab:AddButton({Title = "TOOK HER THE O", Callback = function() playMusic("86370168350239") end})
+MusicTab:AddButton({Title = "Babydoll", Callback = function() playMusic("127012181396114") end})
+MusicTab:AddButton({Title = "JUMPSTYLE", Callback = function() playMusic("105172178633099") end})
+MusicTab:AddButton({Title = "COOL EDIT BEAT", Callback = function() playMusic("82256186012892") end})
+MusicTab:AddButton({Title = "gh funk1", Callback = function() playMusic("140316203107765") end})
+MusicTab:AddButton({Title = "european", Callback = function() playMusic("74904585870595") end})
+MusicTab:AddButton({Title = "Velocit 1.0", Callback = function() playMusic("123955428810663") end})
+MusicTab:AddButton({Title = "Nerve Funk", Callback = function() playMusic("129793988394147") end})
+MusicTab:AddButton({Title = "MOONLIGHT", Callback = function() playMusic("136601122443530") end})
+MusicTab:AddButton({Title = "KLYN - SLOWED", Callback = function() playMusic("90521568613709") end})
+MusicTab:AddButton({Title = "get out", Callback = function() playMusic("99796748877356") end})
+MusicTab:AddButton({Title = "ازعاج فونك", Callback = function() playMusic("120576436665675") end})
+
+----------------------------------------------------
+-- التبويب الثالث: اغاني مجانيه والأدوات
+----------------------------------------------------
+local Tab3 = Library:CreateTab("اغاني مجانيه")
+local selectedMusic = ""
+local spamToggle = false
+local spamTask = nil
+
+-- دوال مساعدة لتبويب الأغاني المجانية
+local function playFreeMusic()
+    if selectedMusic ~= "" then
+        playMusic(selectedMusic)
+    end
+end
+
+local function GetPlayerMatch(name)
+    local target = nil
+    for _, player in pairs(Players:GetPlayers()) do
+        if string.sub(string.lower(player.Name), 1, string.len(name)) == string.lower(name) or
+           string.sub(string.lower(player.DisplayName), 1, string.len(name)) == string.lower(name) then
+            target = player
+            break
+        end
+    end
+    return target
+end
+
+local function SecureAction(actionFunc, verifyFunc)
+    for i = 1, 7 do
+        actionFunc()
+        task.wait(0.25)
+        if verifyFunc() then
+            return true
+        end
+    end
+    return false
+end
+
+local function IsAccessoryEquipped(assetId)
+    local d = LocalPlayer.Character:FindFirstChildOfClass("Humanoid"):GetAppliedDescription()
+    for _, a in ipairs(d:GetAccessories(true)) do
+        if tonumber(a.AssetId) == tonumber(assetId) then
+            return true
+        end
+    end
+    return false
+end
+
+local function ClearAccessoriesByType(accType)
+    local d = LocalPlayer.Character:FindFirstChildOfClass("Humanoid"):GetAppliedDescription()
+    for _, a in ipairs(d:GetAccessories(true)) do
+        if a.AccessoryType == accType then
+            SecureAction(function()
+                ReplicatedStorage.Remotes.Wear:InvokeServer(tonumber(a.AssetId))
+            end, function()
+                return not IsAccessoryEquipped(a.AssetId)
+            end)
+        end
+    end
+end
+
+local function ClearAllClothingAndAccs()
+    local d = LocalPlayer.Character:FindFirstChildOfClass("Humanoid"):GetAppliedDescription()
+    for _, a in ipairs(d:GetAccessories(true)) do
+        SecureAction(function()
+            ReplicatedStorage.Remotes.Wear:InvokeServer(tonumber(a.AssetId))
+        end, function()
+            return not IsAccessoryEquipped(a.AssetId)
+        end)
+    end
+    SecureAction(function()
+        ReplicatedStorage.Remotes.Wear:InvokeServer(0)
+    end, function()
+        local currentD = LocalPlayer.Character:FindFirstChildOfClass("Humanoid"):GetAppliedDescription()
+        return currentD.Shirt == 0 and currentD.Pants == 0 and #currentD:GetAccessories(true) == 0
+    end)
+end
+
+local function CopySpecificAccessory(target, accType)
+    if not target or not target.Character then return end
+    ClearAccessoriesByType(accType)
+    local pD = target.Character:FindFirstChildOfClass("Humanoid"):GetAppliedDescription()
+    for _, a in ipairs(pD:GetAccessories(true)) do
+        if a.AccessoryType == accType then
+            SecureAction(function()
+                ReplicatedStorage.Remotes.Wear:InvokeServer(tonumber(a.AssetId))
+            end, function()
+                return IsAccessoryEquipped(a.AssetId)
+            end)
+        end
+    end
+end
+
+Tab3:AddButton({Title = "تشغيل الصوت الحالي", Callback = function() playFreeMusic() end})
+Tab3:AddButton({Title = "ضحكة سكونا", Callback = function() selectedMusic = "116395665143666" playFreeMusic() end})
+Tab3:AddButton({Title = "غوجو", Callback = function() selectedMusic = "139787675170861" playFreeMusic() end})
+Tab3:AddButton({Title = "قتال", Callback = function() selectedMusic = "132639404905710" playFreeMusic() end})
+Tab3:AddButton({Title = "بنت انمي", Callback = function() selectedMusic = "109779146034241" playFreeMusic() end})
+Tab3:AddButton({Title = "الاسد", Callback = function() selectedMusic = "9126101636" playFreeMusic() end})
+Tab3:AddButton({Title = "جراني", Callback = function() selectedMusic = "1591860354" playFreeMusic() end})
+Tab3:AddButton({Title = "توجي", Callback = function() selectedMusic = "132509237694639" playFreeMusic() end})
+Tab3:AddButton({Title = "فينوم", Callback = function() selectedMusic = "8086734311" playFreeMusic() end})
+Tab3:AddButton({Title = "رعد", Callback = function() selectedMusic = "6994934244" playFreeMusic() end})
+Tab3:AddButton({Title = "بنت واه", Callback = function() selectedMusic = "140621694430612" playFreeMusic() end})
+Tab3:AddButton({Title = "بنت هاي", Callback = function() selectedMusic = "137286678153859" playFreeMusic() end})
+Tab3:AddButton({Title = "واو", Callback = function() selectedMusic = "95139591685380" playFreeMusic() end})
+
+Tab3:AddToggle({Title = "تكرار التشغيل (سبام السيرفر)", Default = false, Callback = function(v)
+    spamToggle = v
+    if v then
+        spamTask = task.spawn(function()
+            while spamToggle do
+                playFreeMusic()
+                task.wait(0.5)
+            end
+        end)
+    else
+        if spamTask then
+            task.cancel(spamTask)
+            spamTask = nil
+        end
+    end
+end})
+
+----------------------------------------------------
+-- التبويب الرابع: سبام الشات
+----------------------------------------------------
+local SpamTab = Library:CreateTab("سبام الشات")
+local TextSave = ""
+
+SpamTab:AddSection("⚠️ خلي بالك ياعسل السبام بيجيب بان ⚠️")
+
+SpamTab:AddTextBox({
+    Title = "الرسالة",
+    Description = "أكتب رسالتك",
+    Default = "",
+    PlaceholderText = "أكتب هنا...",
+    ClearText = true,
+    Callback = function(Value)
+        TextSave = Value
+    end
+})
+
+SpamTab:AddToggle({
+    Title = "بدء السبام",
+    Default = false,
+    Callback = function(Value)
+        getgenv().Spam = Value
+        while getgenv().Spam do
+            pcall(function()
+                local tcs = game:GetService("TextChatService")
+                if tcs.ChatVersion == Enum.ChatVersion.LegacyChatService then
+                    ReplicatedStorage:FindFirstChild("DefaultChatSystemChatEvents").SayMessageRequest:FireServer(TextSave, "All")
+                else
+                    tcs.ChatInputBarConfiguration.TargetTextChannel:SendAsync(TextSave)
+                end
+            end)
+            task.wait(0.1)
+        end
+    end
+})
+
+SpamTab:AddButton({
+    Title = "شات كاذب",
+    Callback = function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/game-hax/uca/main/release/uca.min.lua"))()
+    end
+})
+
+SpamTab:AddButton({
+    Title = "رسم",
+    Callback = function()
+        loadstring(game:HttpGet("https://pastebin.com/raw/Q5zhT6Mv"))()
+    end
+})
+
+----------------------------------------------------
+-- التبويب الخامس: الانتقالات
+----------------------------------------------------
+local TabTeleport = Library:CreateTab("الانتقالات")
+
+local teleportButtons = {
+    {"الفندق", CFrame.new(192,4,272)},
+    {"ساحة المطاعم", CFrame.new(136,4,117)},
+    {"المقر السري", CFrame.new(-119,-28,235)},
+    {"البيت المهجور", CFrame.new(986,4,63)},
+    {"الكهف", CFrame.new(672,4,-296)},
+    {"تحت الماب", CFrame.new(505,-75,143)},
+    {"المدرسة", CFrame.new(-312,4,211)},
+    {"محل البيتزا", CFrame.new(161,8,52)},
+    {"الراسبون", CFrame.new(-26,4,-23)},
+    {"اعلى الجسر", CFrame.new(-589,141,-59)},
+    {"المستشفى", CFrame.new(-309,4,71)},
+    {"المختبر السري", CFrame.new(179,4,-464)},
+    {"تحت الماب 1", CFrame.new(0,4,-495)},
+    {"تحت الماب 2", CFrame.new(-343,4,-613)},
+    {"الجزيرة", CFrame.new(-1925,23,127)},
+    {"ساحة الفنادق", CFrame.new(182,4,150)},
+    {"جبل الثلج", CFrame.new(-670,251,765)},
+    {"البنك", CFrame.new(2.28,4.65,254.58)},
+    {"محل الملابس", CFrame.new(-46.15,4.65,253.20)},
+    {"محل الحيوانات", CFrame.new(-88.48,22.05,262.34)},
+    {"العيادة", CFrame.new(-53.58,22.15,265.61)},
+    {"المقهى", CFrame.new(-97.12,4.65,254.99)}
+}
+
+for _, btn in ipairs(teleportButtons) do
+    TabTeleport:AddButton({
+        Title = btn[1],
+        Callback = function()
+            pcall(function()
+                LocalPlayer.Character.HumanoidRootPart.CFrame = btn[2]
+            end)
+        end
+    })
+end
+
+----------------------------------------------------
+-- التبويب السادس: الأوامر
+----------------------------------------------------
+local CmdTab = Library:CreateTab("الأوامر")
+
+CmdTab:AddSection("السرعة والقفز والجاذبية")
+
+CmdTab:AddSlider({
+    Title = "سرعة المشي",
+    Description = "تغيير سرعة المشي",
+    Min = 16,
+    Max = 500,
+    Default = 16,
+    Increase = 1,
+    Callback = function(Value)
+        local char = LocalPlayer.Character
+        if char and char:FindFirstChild("Humanoid") then
+            char.Humanoid.WalkSpeed = Value
+        end
+    end
+})
+
+CmdTab:AddButton({
+    Title = "إعادة الحجم الطبيعي",
+    Description = "إعادة سرعة المشي إلى الوضع الطبيعي (16)",
+    Callback = function()
+        local char = LocalPlayer.Character
+        if char and char:FindFirstChild("Humanoid") then
+            char.Humanoid.WalkSpeed = 16
+        end
+    end
+})
+
+CmdTab:AddSlider({
+    Title = "قوة القفز",
+    Description = "تغيير قوة القفز",
+    Min = 50,
+    Max = 500,
+    Default = 50,
+    Increase = 5,
+    Callback = function(Value)
+        local char = LocalPlayer.Character
+        if char and char:FindFirstChild("Humanoid") then
+            char.Humanoid.JumpPower = Value
+        end
+    end
+})
+
+CmdTab:AddButton({
+    Title = "إعادة الحجم الطبيعي",
+    Description = "إعادة قوة القفز إلى الوضع الطبيعي (50)",
+    Callback = function()
+        local char = LocalPlayer.Character
+        if char and char:FindFirstChild("Humanoid") then
+            char.Humanoid.JumpPower = 50
+        end
+    end
+})
+
+CmdTab:AddSlider({
+    Title = "الجاذبية",
+    Description = "تغيير جاذبية اللعبة",
+    Min = 0,
+    Max = 500,
+    Default = 196,
+    Increase = 1,
+    Callback = function(Value)
+        workspace.Gravity = Value
+    end
+})
+
+CmdTab:AddButton({
+    Title = "إعادة الحجم الطبيعي",
+    Description = "إعادة الجاذبية إلى الوضع الطبيعي (196.2)",
+    Callback = function()
+        workspace.Gravity = 196.2
+    end
+})
+
+CmdTab:AddSection("أدوات")
+
+CmdTab:AddButton({
+    Title = "جلب الكنبة",
+    Description = "إحضار كنبة للحقيبة",
+    Callback = function()
+        ReplicatedStorage.RE:FindFirstChild("1Too1l"):InvokeServer("PickingTools", "Couch")
+    end
+})
+
+CmdTab:AddButton({
+    Title = "الطيران بالكنبة",
+    Description = "تشغيل سكربت الطيران بالكنبة",
+    Callback = function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/0Ben1/fe./main/Fling%20GUI"))()
+    end
+})
+
+CmdTab:AddButton({
+    Title = "إعادة الدخول",
+    Description = "إعادة الدخول إلى السيرفر",
+    Callback = function()
+        game:GetService("TeleportService"):Teleport(game.PlaceId, LocalPlayer)
+    end
+})
+
+CmdTab:AddButton({
+    Title = "قتل النفس",
+    Description = "تصفية الشخصية",
+    Callback = function()
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+            LocalPlayer.Character.Humanoid.Health = 0
+        end
+    end
+})
+
+CmdTab:AddToggle({
+    Title = "اختراق الجدران",
+    Description = "NoClip",
+    Default = false,
+    Callback = function(Value)
+        if Value then
+            RunService.Stepped:Connect(function()
+                local char = LocalPlayer.Character
+                if char then
+                    for _, p in ipairs(char:GetDescendants()) do
+                        if p:IsA("BasePart") then p.CanCollide = false end
+                    end
+                end
+            end)
+        end
+    end
+})
+
+CmdTab:AddToggle({
+    Title = "قفز لا نهائي",
+    Description = "قفز متواصل",
+    Default = false,
+    Callback = function(Value)
+        getgenv().InfJump = Value
+    end
+})
+
+UserInputService.JumpRequest:Connect(function()
+    if getgenv().InfJump and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        LocalPlayer.Character.Humanoid:ChangeState("Jumping")
+    end
+end)
