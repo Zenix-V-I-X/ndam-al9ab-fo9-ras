@@ -1,7 +1,7 @@
 -- تم الصناعة بواسطة المطور Zenix 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
-local TagSubTitle = "Zenix dark joker"
+local TagSubTitle = "joo music script"
 
 local RankData = {
     Developers = {
