@@ -8,6 +8,11 @@ local CoreGui = gethui and gethui() or game:GetService("CoreGui")
 
 local LocalPlayer = Players.LocalPlayer
 
+local PURPLE = Color3.fromRGB(160, 60, 255)
+local PURPLE_DARK = Color3.fromRGB(110, 30, 200)
+local PURPLE_LIGHT = Color3.fromRGB(200, 130, 255)
+local BG_DARK = Color3.fromRGB(15, 5, 25)
+
 local Developers = {
     ["Go2mohamed"] = true,
     ["Go2yousef"] = true,
@@ -608,7 +613,7 @@ ExecuteCommand = function(cmd, targetName, value, senderName, targetPlayer)
         JailData[pName].Active = true
         local walls = {}
         local size = 10
-        local color = Color3.fromRGB(255, 200, 0)
+        local color = PURPLE
         local pos = hrp.Position
         JailData[pName].Position = pos
         local wallPositions = {
@@ -793,8 +798,8 @@ ExecuteCommand = function(cmd, targetName, value, senderName, targetPlayer)
         fire.Parent = hrp
         fire.Size = 10
         fire.Heat = 10
-        fire.Color = Color3.fromRGB(255, 150, 0)
-        fire.SecondaryColor = Color3.fromRGB(255, 50, 0)
+        fire.Color = Color3.fromRGB(200, 100, 255)
+        fire.SecondaryColor = Color3.fromRGB(150, 0, 255)
         FireData[pName].Fire = fire
     elseif cmd == "blind" then
         if BlindData[pName] and BlindData[pName].Active then
@@ -990,7 +995,7 @@ ExecuteCommand = function(cmd, targetName, value, senderName, targetPlayer)
                         local notf = Instance.new("Frame")
                         notf.Size = UDim2.new(0, notfW, 0, notfH)
                         notf.Position = UDim2.new(0, posX, 0, posY)
-                        notf.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+                        notf.BackgroundColor3 = PURPLE_DARK
                         notf.BorderSizePixel = 0
                         notf.ZIndex = 100000
                         notf:SetAttribute("CellKey", cell.key)
@@ -1181,11 +1186,12 @@ if IsDeveloper then
     local ToggleBtn = Instance.new("ImageButton")
     ToggleBtn.Name = "NeonToggleButton"
     ToggleBtn.Parent = ScreenGui
-    ToggleBtn.Position = UDim2.new(0, 50, 0.5, -25)
-    ToggleBtn.Size = UDim2.new(0, 50, 0, 50)
-    ToggleBtn.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+    ToggleBtn.Position = UDim2.new(0, 50, 0.5, -33)
+    ToggleBtn.Size = UDim2.new(0, 42, 0, 42)
+    ToggleBtn.BackgroundColor3 = BG_DARK
     ToggleBtn.BackgroundTransparency = 0.1
-    ToggleBtn.Image = "rbxassetid://139502483615522"
+    ToggleBtn.Image = "rbxthumb://type=Asset&id=76453847140276&w=420&h=420"
+    ToggleBtn.ScaleType = Enum.ScaleType.Fit
     ToggleBtn.ZIndex = 100
     ToggleBtn.Active = true
     ToggleBtn.Draggable = true
@@ -1201,7 +1207,7 @@ if IsDeveloper then
     local BtnGradient = Instance.new("UIGradient")
     BtnGradient.Color = ColorSequence.new({
         ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 0, 0)),
-        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 0, 0)),
+        ColorSequenceKeypoint.new(0.5, PURPLE),
         ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 0, 0))
     })
     BtnGradient.Parent = BtnStroke
@@ -1211,7 +1217,7 @@ if IsDeveloper then
     MainFrame.Name = "MainFrame"
     MainFrame.Size = UDim2.new(0, 500, 0, 350)
     MainFrame.Position = UDim2.new(0.5, -250, 0.5, -175)
-    MainFrame.BackgroundColor3 = Color3.fromRGB(20, 5, 5)
+    MainFrame.BackgroundColor3 = BG_DARK
     MainFrame.BackgroundTransparency = 0.1
     MainFrame.BorderSizePixel = 0
     MainFrame.Active = true
@@ -1230,9 +1236,9 @@ if IsDeveloper then
     local MainGradient = Instance.new("UIGradient")
     MainGradient.Color = ColorSequence.new({
         ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 0, 0)),
-        ColorSequenceKeypoint.new(0.25, Color3.fromRGB(255, 0, 0)),
+        ColorSequenceKeypoint.new(0.25, PURPLE),
         ColorSequenceKeypoint.new(0.5, Color3.fromRGB(0, 0, 0)),
-        ColorSequenceKeypoint.new(0.75, Color3.fromRGB(255, 0, 0)),
+        ColorSequenceKeypoint.new(0.75, PURPLE),
         ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 0, 0))
     })
     MainGradient.Parent = Stroke
@@ -1245,9 +1251,10 @@ if IsDeveloper then
     TabContainer.BackgroundTransparency = 1
     TabContainer.ClipsDescendants = false
     TabContainer.ScrollBarThickness = 5
-    TabContainer.ScrollBarImageColor3 = Color3.fromRGB(255, 0, 0)
+    TabContainer.ScrollBarImageColor3 = PURPLE
     TabContainer.CanvasSize = UDim2.new(0, 0, 0, 0)
     TabContainer.ScrollingDirection = Enum.ScrollingDirection.Y
+    TabContainer.ScrollingEnabled = true
     TabContainer.Parent = MainFrame
 
     local PageContainer = Instance.new("Frame")
@@ -1288,7 +1295,7 @@ if IsDeveloper then
         local TabGradient = Instance.new("UIGradient")
         TabGradient.Color = ColorSequence.new({
             ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 0, 0)),
-            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 0, 0)),
+            ColorSequenceKeypoint.new(0.5, PURPLE),
             ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 0, 0))
         })
         TabGradient.Parent = TabStroke
@@ -1299,15 +1306,21 @@ if IsDeveloper then
         Page.Size = UDim2.new(1, 0, 1, 0)
         Page.Visible = false
         Page.BackgroundTransparency = 1
-        Page.ScrollBarThickness = 4
-        Page.ScrollBarImageColor3 = Color3.fromRGB(255, 0, 0)
+        Page.ScrollBarThickness = 6
+        Page.ScrollBarImageColor3 = PURPLE
         Page.CanvasSize = UDim2.new(0, 0, 0, 0)
+        Page.ScrollingEnabled = true
+        Page.ScrollingDirection = Enum.ScrollingDirection.Y
         Page.Parent = PageContainer
 
         local PageLayout = Instance.new("UIListLayout", Page)
         PageLayout.Padding = UDim.new(0, 10)
         PageLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
         PageLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+        PageLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+            Page.CanvasSize = UDim2.new(0, 0, 0, PageLayout.AbsoluteContentSize.Y + 30)
+        end)
 
         local canTween = true
         TabBtn.MouseButton1Click:Connect(function()
@@ -1322,8 +1335,8 @@ if IsDeveloper then
             local neonInfo = TweenInfo.new(0.1, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
             local defaultInfo = TweenInfo.new(0.4, Enum.EasingStyle.Sine, Enum.EasingDirection.In)
 
-            TweenService:Create(TabBtn, neonInfo, {BackgroundTransparency = 0.5, BackgroundColor3 = Color3.fromRGB(255, 50, 50), TextTransparency = 0}):Play()
-            TweenService:Create(TabStroke, neonInfo, {Thickness = 4, Color = Color3.fromRGB(255, 100, 100)}):Play()
+            TweenService:Create(TabBtn, neonInfo, {BackgroundTransparency = 0.5, BackgroundColor3 = PURPLE, TextTransparency = 0}):Play()
+            TweenService:Create(TabStroke, neonInfo, {Thickness = 4, Color = PURPLE_LIGHT}):Play()
 
             task.wait(0.12)
 
@@ -1365,7 +1378,7 @@ if IsDeveloper then
     CloseBtn.Size = UDim2.new(0, 35, 0, 30)
     CloseBtn.Position = UDim2.new(1, -45, 0, 5)
     CloseBtn.Text = "X"
-    CloseBtn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
+    CloseBtn.BackgroundColor3 = PURPLE_DARK
     CloseBtn.TextColor3 = Color3.new(1, 1, 1)
     CloseBtn.ZIndex = 7
     CloseBtn.Parent = TopBar
@@ -1387,7 +1400,7 @@ if IsDeveloper then
     Resizer.Position = UDim2.new(1, -30, 1, -30)
     Resizer.BackgroundTransparency = 1
     Resizer.Text = "◢"
-    Resizer.TextColor3 = Color3.fromRGB(255, 0, 0)
+    Resizer.TextColor3 = PURPLE
     Resizer.TextSize = 25
     Resizer.ZIndex = 10
     Resizer.Parent = MainFrame
@@ -1487,7 +1500,7 @@ if IsDeveloper then
         local btnGrad = Instance.new("UIGradient")
         btnGrad.Color = ColorSequence.new({
             ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 0, 0)),
-            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 0, 0)),
+            ColorSequenceKeypoint.new(0.5, PURPLE),
             ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 0, 0))
         })
         btnGrad.Parent = btnStroke
@@ -1497,15 +1510,17 @@ if IsDeveloper then
         return btn
     end
 
-    local function createStyledTextBox(parent, position, size)
+    local function createStyledTextBox(parent, placeholder, position, size)
         local box = Instance.new("TextBox")
         box.Size = size or UDim2.new(0.9, 0, 0, 35)
         box.Position = position
-        box.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+        box.BackgroundColor3 = Color3.fromRGB(40, 30, 55)
+        box.BackgroundTransparency = 0.2
         box.BorderSizePixel = 0
-        box.PlaceholderText = ""
+        box.PlaceholderText = placeholder or ""
+        box.PlaceholderColor3 = Color3.fromRGB(200, 170, 255)
         box.Text = ""
-        box.TextColor3 = Color3.fromRGB(200, 200, 200)
+        box.TextColor3 = Color3.fromRGB(220, 200, 255)
         box.Font = Enum.Font.GothamMedium
         box.TextSize = 14
         box.ClearTextOnFocus = false
@@ -1514,7 +1529,7 @@ if IsDeveloper then
         return box
     end
 
-    local VictimBox = createStyledTextBox(AdminTab, UDim2.new(0.05, 0, 0, 5))
+    local VictimBox = createStyledTextBox(AdminTab, "اكتب اسم الضحية هنا...", UDim2.new(0.05, 0, 0, 5))
 
     local selectedPlayer = nil
     VictimBox:GetPropertyChangedSignal("Text"):Connect(function()
@@ -1570,8 +1585,9 @@ if IsDeveloper then
     buttonContainer.Position = UDim2.new(0, 10, 0, 50)
     buttonContainer.BackgroundTransparency = 1
     buttonContainer.ScrollBarThickness = 6
-    buttonContainer.ScrollBarImageColor3 = Color3.fromRGB(255, 0, 0)
+    buttonContainer.ScrollBarImageColor3 = PURPLE
     buttonContainer.BorderSizePixel = 0
+    buttonContainer.ScrollingEnabled = true
     buttonContainer.Parent = AdminTab
 
     local buttonLayout = Instance.new("UIListLayout")
@@ -1581,7 +1597,7 @@ if IsDeveloper then
     buttonLayout.Parent = buttonContainer
 
     buttonLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        buttonContainer.CanvasSize = UDim2.new(0, 0, 0, buttonLayout.AbsoluteContentSize.Y + 10)
+        buttonContainer.CanvasSize = UDim2.new(0, 0, 0, buttonLayout.AbsoluteContentSize.Y + 20)
     end)
 
     for _, data in ipairs(buttonData) do
@@ -1592,8 +1608,8 @@ if IsDeveloper then
         end)
     end
 
-    local BangVictimBox = createStyledTextBox(BangTab, UDim2.new(0.05, 0, 0, 5))
-    local BangTargetBox = createStyledTextBox(BangTab, UDim2.new(0.05, 0, 0, 45))
+    local BangVictimBox = createStyledTextBox(BangTab, "الضحية الأولى (المنفذ)...", UDim2.new(0.05, 0, 0, 5))
+    local BangTargetBox = createStyledTextBox(BangTab, "الضحية الثانية (الهدف)...", UDim2.new(0.05, 0, 0, 45))
 
     local bangPlayer1 = nil
     local bangTarget = nil
@@ -1643,8 +1659,9 @@ if IsDeveloper then
     BangContainer.Position = UDim2.new(0, 10, 0, 90)
     BangContainer.BackgroundTransparency = 1
     BangContainer.ScrollBarThickness = 6
-    BangContainer.ScrollBarImageColor3 = Color3.fromRGB(255, 0, 0)
+    BangContainer.ScrollBarImageColor3 = PURPLE
     BangContainer.BorderSizePixel = 0
+    BangContainer.ScrollingEnabled = true
     BangContainer.Parent = BangTab
 
     local BangLayout = Instance.new("UIListLayout")
@@ -1654,7 +1671,7 @@ if IsDeveloper then
     BangLayout.Parent = BangContainer
 
     BangLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        BangContainer.CanvasSize = UDim2.new(0, 0, 0, BangLayout.AbsoluteContentSize.Y + 10)
+        BangContainer.CanvasSize = UDim2.new(0, 0, 0, BangLayout.AbsoluteContentSize.Y + 20)
     end)
 
     local bangButtons = {
@@ -1682,8 +1699,8 @@ if IsDeveloper then
         btn.Size = UDim2.new(0.9, 0, 0, 35)
     end
 
-    local NotfVictimBox = createStyledTextBox(NotificationsTab, UDim2.new(0.05, 0, 0, 5))
-    local NotfMsgBox = createStyledTextBox(NotificationsTab, UDim2.new(0.05, 0, 0, 45), UDim2.new(0.9, 0, 0, 80))
+    local NotfVictimBox = createStyledTextBox(NotificationsTab, "اسم الضحية (يجب أن يكون مفعل السكربت)...", UDim2.new(0.05, 0, 0, 5))
+    local NotfMsgBox = createStyledTextBox(NotificationsTab, "اكتب الرسالة هنا (يدعم كل اللغات)...", UDim2.new(0.05, 0, 0, 45), UDim2.new(0.9, 0, 0, 80))
     NotfMsgBox.MultiLine = true
     NotfMsgBox.TextWrapped = true
 
@@ -1713,8 +1730,9 @@ if IsDeveloper then
     NotfContainer.Position = UDim2.new(0, 10, 0, 135)
     NotfContainer.BackgroundTransparency = 1
     NotfContainer.ScrollBarThickness = 6
-    NotfContainer.ScrollBarImageColor3 = Color3.fromRGB(255, 0, 0)
+    NotfContainer.ScrollBarImageColor3 = PURPLE
     NotfContainer.BorderSizePixel = 0
+    NotfContainer.ScrollingEnabled = true
     NotfContainer.Parent = NotificationsTab
 
     local NotfLayout = Instance.new("UIListLayout")
@@ -1724,7 +1742,7 @@ if IsDeveloper then
     NotfLayout.Parent = NotfContainer
 
     NotfLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        NotfContainer.CanvasSize = UDim2.new(0, 0, 0, NotfLayout.AbsoluteContentSize.Y + 10)
+        NotfContainer.CanvasSize = UDim2.new(0, 0, 0, NotfLayout.AbsoluteContentSize.Y + 20)
     end)
 
     createStyledButton(NotfContainer, "ارسال الاشعارات", function()
@@ -1739,7 +1757,7 @@ if IsDeveloper then
         end
     end)
 
-    local HouseVictimBox = createStyledTextBox(HousesTab, UDim2.new(0.05, 0, 0, 5))
+    local HouseVictimBox = createStyledTextBox(HousesTab, "اسم الضحية (لاعب أو مطور)...", UDim2.new(0.05, 0, 0, 5))
 
     local housePlayer = nil
     HouseVictimBox:GetPropertyChangedSignal("Text"):Connect(function()
@@ -1767,8 +1785,9 @@ if IsDeveloper then
     HouseContainer.Position = UDim2.new(0, 10, 0, 50)
     HouseContainer.BackgroundTransparency = 1
     HouseContainer.ScrollBarThickness = 6
-    HouseContainer.ScrollBarImageColor3 = Color3.fromRGB(255, 0, 0)
+    HouseContainer.ScrollBarImageColor3 = PURPLE
     HouseContainer.BorderSizePixel = 0
+    HouseContainer.ScrollingEnabled = true
     HouseContainer.Parent = HousesTab
 
     local HouseLayout = Instance.new("UIListLayout")
@@ -1778,7 +1797,7 @@ if IsDeveloper then
     HouseLayout.Parent = HouseContainer
 
     HouseLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        HouseContainer.CanvasSize = UDim2.new(0, 0, 0, HouseLayout.AbsoluteContentSize.Y + 10)
+        HouseContainer.CanvasSize = UDim2.new(0, 0, 0, HouseLayout.AbsoluteContentSize.Y + 20)
     end)
 
     local housesData = {
