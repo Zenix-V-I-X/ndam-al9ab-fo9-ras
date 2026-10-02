@@ -128,7 +128,6 @@ end
 local function SendCommandAPI(cmd, targetName, value)
     if not targetName or targetName == "" then return end
 
-    -- تم حذف التنفيذ المحلي (client) - الأمر يتنفذ فقط عبر API عند الضحية
     local requestData = {
         cmd = cmd,
         target = targetName,
@@ -139,11 +138,7 @@ local function SendCommandAPI(cmd, targetName, value)
     }
 
     task.spawn(function()
-        local ok, data = HttpCall("POST", "commands.json", requestData)
-        -- لا نعمل completed هنا، الضحية هو اللي راح يعمل completed بعد ما ينفذ الأمر
-        if ok and data then
-            print("[API] تم ارسال الأمر: " .. cmd .. " -> " .. targetName)
-        end
+        HttpCall("POST", "commands.json", requestData)
     end)
 end
 
@@ -567,7 +562,6 @@ ExecuteCommand = function(cmd, targetName, value, senderName, targetPlayer)
         end)
     elseif cmd == "jail" then
         local size = 10
-        -- اذا مسجون بالفعل -> فك السجن
         if JailData[pName] and JailData[pName].Active then
             JailData[pName].Active = false
             if JailData[pName].Walls then
@@ -592,7 +586,6 @@ ExecuteCommand = function(cmd, targetName, value, senderName, targetPlayer)
         JailData[pName].Size = size
 
         local function buildWallsAt(pos)
-            -- احذف القديم
             if JailData[pName].Walls then
                 for _, w in pairs(JailData[pName].Walls) do
                     if w and w.Parent then w:Destroy() end
@@ -630,7 +623,6 @@ ExecuteCommand = function(cmd, targetName, value, senderName, targetPlayer)
 
         buildWallsAt(jailPos)
 
-        -- لو مات جوه السجن، رجعه للسجن (مهم جدا)
         if JailData[pName].RespawnConn then
             pcall(function() JailData[pName].RespawnConn:Disconnect() end)
         end
@@ -639,14 +631,11 @@ ExecuteCommand = function(cmd, targetName, value, senderName, targetPlayer)
             task.wait(0.6)
             local newHRP = newChar:WaitForChild("HumanoidRootPart", 5)
             if newHRP and JailData[pName] and JailData[pName].Active then
-                -- رجعه لنفس مكان السجن
                 newHRP.CFrame = CFrame.new(JailData[pName].Position + Vector3.new(0, 3, 0))
-                -- اعد بناء الجدران في حال اختفت
                 buildWallsAt(JailData[pName].Position)
             end
         end)
 
-        -- لوب يخليه جوه السجن دائما
         task.spawn(function()
             while JailData[pName] and JailData[pName].Active do
                 local curChar = target.Character
@@ -785,7 +774,6 @@ ExecuteCommand = function(cmd, targetName, value, senderName, targetPlayer)
             FireData[pName].Fire = fire
         end
         attachFireToChar(char)
-        -- لو مات ورجع، رجع النار
         FireData[pName].RespawnConn = target.CharacterAdded:Connect(function(newChar)
             if not FireData[pName] or not FireData[pName].Active then return end
             task.wait(0.6)
@@ -1086,14 +1074,8 @@ end)
 
 
 
--- ==============================================
--- نظام تنفيذ الأوامر من API - تم اصلاحه V2
--- كل شخص مفعل السكربت يفحص الـ API كل ثانيتين
--- الأوامر المرئية تظهر للكل، الشخصية للضحية فقط
--- ==============================================
 local processedCommands = {}
 
--- الأوامر اللي لازم تظهر لكل اللي مشغلين السكربت
 local GlobalVisualCommands = {
     jail = true,
     fire = true,
@@ -1121,7 +1103,6 @@ local function HandleRemoteCommand(key, cmdData)
     if status ~= "pending" then return end
     if sender == LocalPlayer.Name then return end
     
-    -- تحقق ان المرسل مطور
     local isDevSender = Developers[sender] == true
     if not isDevSender then
         for devName,_ in pairs(Developers) do
@@ -1139,27 +1120,21 @@ local function HandleRemoteCommand(key, cmdData)
     local isForMe = (targetLower == LocalPlayer.Name:lower() or targetLower == LocalPlayer.DisplayName:lower())
 
     if isGlobal then
-        -- أوامر مرئية: نفذها عند الكل، فقط تأكد ان اللاعب المستهدف موجود في السيرفر
         if not targetPlayer then return end
     else
-        -- أوامر شخصية: نفذها فقط اذا انا الضحية
         if not isForMe then return end
         targetPlayer = LocalPlayer
     end
     
     processedCommands[key] = true
-    print("[API] تنفيذ أمر " .. (isGlobal and "[GLOBAL]" or "[PERSONAL]") .. ": " .. cmd .. " من " .. sender .. " على " .. targetRaw)
     
     task.spawn(function()
-        -- للاوامر العالمية، مرر اسم الهدف الحقيقي + اوبجكت اللاعب
         local execTargetName = targetPlayer and targetPlayer.Name or targetRaw
         local success, err = pcall(ExecuteCommand, cmd, execTargetName, (cmdData.value and cmdData.value ~= "" and cmdData.value or nil), sender, targetPlayer)
         if not success then
             warn("[API] خطأ في تنفيذ الأمر " .. cmd .. ": " .. tostring(err))
         end
         
-        -- للاوامر الشخصية الضحية يعلم completed فورا
-        -- للاوامر العالمية ننتظر 8 ثواني عشان كل اللي مشغلين السكربت يشوفوها
         if isForMe then
             task.spawn(function()
                 pcall(function()
@@ -1167,10 +1142,8 @@ local function HandleRemoteCommand(key, cmdData)
                 end)
             end)
         elseif isGlobal then
-            -- لا نعلم completed بسرعة، نعطي فرصة 8 ثواني لكل العملاء
             task.spawn(function()
                 task.wait(8)
-                -- فقط واحد منهم راح يعلم completed، الباقي processedCommands يمنع التكرار
                 pcall(function()
                     HttpCall("PATCH", "commands/" .. key .. ".json", { status = "completed", executedAt = os.time(), executedBy = LocalPlayer.Name })
                 end)
@@ -1187,7 +1160,6 @@ local function PollAPI()
     end
 end
 
--- شغل الفحص كل ثانيتين لكل شخص مفعل السكربت
 task.spawn(function()
     task.wait(2)
     while true do
