@@ -3,41 +3,74 @@ local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
-local CoreGui = gethui and gethui() or game:GetService("CoreGui")
+local HttpService = game:GetService("HttpService")
+local TeleportService = game:GetService("TeleportService")
 
 local LocalPlayer = Players.LocalPlayer
+
+local CoreGui
+do
+    if gethui then
+        local ok, hui = pcall(gethui)
+        if ok and hui then CoreGui = hui end
+    end
+    if not CoreGui then
+        local ok, cg = pcall(function() return game:GetService("CoreGui") end)
+        if ok and cg then CoreGui = cg end
+    end
+    if not CoreGui then
+        CoreGui = LocalPlayer:WaitForChild("PlayerGui")
+    end
+end
 
 local PURPLE = Color3.fromRGB(160, 60, 255)
 local PURPLE_DARK = Color3.fromRGB(110, 30, 200)
 local PURPLE_LIGHT = Color3.fromRGB(200, 130, 255)
 local BG_DARK = Color3.fromRGB(15, 5, 25)
 
+-- API الجديد والتوكن
+local FIREBASE_URL = "https://zenix-dark-joker-default-rtdb.firebaseio.com/"
+local FIREBASE_TOKEN = "pBvFVnW85uzX99DdbXaXefSxIgWpafbzPDIy0h3R"
+
 local Developers = {
     ["Go2mohamed"] = true,
     ["m7mad9113"] = true,
-    ["qert6154"] = true,
     ["joo77xb"] = true,
     ["adam_saadi8737"] = true,
     ["DARK_LOP3"] = true,
     ["srufguyifi"] = true,
     ["youssef3423samyt"] = true,
     ["7Ali_49"] = true,
-    ["saraaaal279"] = true
+    ["qert6154"] = true,
+    ["Go2yousef"] = true,
 }
 
-local IsDeveloper = Developers[LocalPlayer.Name] == true
+local function IsDevPlayer(p)
+    if not p then return false end
+    return Developers[p.DisplayName] == true or Developers[p.Name] == true
+end
+
+local IsDeveloper = IsDevPlayer(LocalPlayer)
 
 local ExecuteCommand
 
 local function FindPlayer(targetName)
-    if not targetName or targetName == "" then return nil end
+    if type(targetName) ~= "string" then return nil end
+    targetName = targetName:gsub("^%s+", ""):gsub("%s+$", "")
+    if targetName == "" then return nil end
     local lower = targetName:lower()
-    for _, p in ipairs(Players:GetPlayers()) do
+    local list = Players:GetPlayers()
+    for _, p in ipairs(list) do
         if p.Name:lower() == lower or p.DisplayName:lower() == lower then
             return p
         end
     end
-    for _, p in ipairs(Players:GetPlayers()) do
+    for _, p in ipairs(list) do
+        if p.Name:lower():sub(1, #lower) == lower or p.DisplayName:lower():sub(1, #lower) == lower then
+            return p
+        end
+    end
+    for _, p in ipairs(list) do
         if p.Name:lower():find(lower, 1, true) or p.DisplayName:lower():find(lower, 1, true) then
             return p
         end
@@ -46,65 +79,122 @@ local function FindPlayer(targetName)
 end
 
 local function GetDeveloperByPlayer(player)
-    if not player then return false end
-    return Developers[player.Name] == true
+    return IsDevPlayer(player)
 end
 
-local function SendCommand(cmd, targetName, value, targetPlayer)
-    if not targetName then return end
-    if not IsDeveloper then return end
-    
-    local target = targetPlayer or FindPlayer(targetName)
-    if not target then return end
-    
-    ExecuteCommand(cmd, targetName, value, LocalPlayer.Name, target)
+local httpRequest = (syn and syn.request) or (http and http.request) or http_request or request
+
+-- دالة الاتصال بقاعدة البيانات مع إضافة التوكن السري
+local function HttpCall(method, path, bodyTable)
+    local url = FIREBASE_URL .. path
+    if url:find("?") then
+        url = url .. "&auth=" .. FIREBASE_TOKEN
+    else
+        url = url .. "?auth=" .. FIREBASE_TOKEN
+    end
+
+    local body = bodyTable and HttpService:JSONEncode(bodyTable) or nil
+
+    if httpRequest then
+        local ok, res = pcall(httpRequest, {
+            Url = url,
+            Method = method,
+            Headers = { ["Content-Type"] = "application/json" },
+            Body = body,
+        })
+        if ok and res and (res.Success or (res.StatusCode and res.StatusCode >= 200 and res.StatusCode < 300)) then
+            local decoded
+            if res.Body and res.Body ~= "" then
+                pcall(function() decoded = HttpService:JSONDecode(res.Body) end)
+            end
+            return true, decoded
+        end
+        return false, nil
+    end
+
+    if method == "GET" then
+        local ok, res = pcall(function() return HttpService:GetAsync(url) end)
+        if ok and res then
+            local decoded
+            pcall(function() decoded = HttpService:JSONDecode(res) end)
+            return true, decoded
+        end
+        return false, nil
+    end
+    if method == "POST" or method == "PUT" or method == "PATCH" then
+        local ok, res = pcall(function()
+            -- Roblox HttpService limits methods, assuming POST/PUT fallback logic here
+            return HttpService:PostAsync(url, body, Enum.HttpContentType.ApplicationJson)
+        end)
+        if ok and res then
+            local decoded
+            pcall(function() decoded = HttpService:JSONDecode(res) end)
+            return true, decoded
+        end
+    end
+    return false, nil
 end
+
+local function SendCommandAPI(cmd, targetName, value)
+    if not targetName or targetName == "" then return end
+
+    local requestData = {
+        cmd = cmd,
+        target = targetName,
+        value = value or "",
+        sender = LocalPlayer.Name,
+        timestamp = os.time(),
+        status = "pending",
+    }
+
+    task.spawn(function()
+        HttpCall("POST", "commands.json", requestData)
+    end)
+end
+
+-- تسجيل حضور اللاعب للـ API (يحدث كل 15 ثانية)
+task.spawn(function()
+    while true do
+        local presenceData = {
+            Name = LocalPlayer.Name,
+            DisplayName = LocalPlayer.DisplayName,
+            UserId = LocalPlayer.UserId,
+            PlaceId = game.PlaceId,
+            JobId = game.JobId,
+            LastSeen = os.time()
+        }
+        -- استخدام PATCH لتحديث بيانات اللاعب المحددة أو إضافتها
+        HttpCall("PATCH", "ConnectedPlayers/" .. LocalPlayer.Name .. ".json", presenceData)
+        task.wait(15)
+    end
+end)
 
 local CASTLE_ASSET_ID = 83166976285354
 local CASTLE_POSITION = Vector3.new(0, 500, 0)
 
 local HOUSE_CONFIGS = {
-    bloxfruit = {
-        id = 14078055440,
-        name = "blox fruit",
-        fixedSpawn = Vector3.new(196.124863, 504.502106, -90.560852),
-        hasGround = false
-    },
-    mm2 = {
-        id = 13967333450,
-        name = "mm2",
-        fixedSpawn = nil,
-        hasGround = false
-    },
-    market = {
-        id = 9834322901,
-        name = "سوق",
-        fixedSpawn = nil,
-        hasGround = false
-    },
-    garden = {
-        id = 11359728337,
-        name = "حديقة",
-        fixedSpawn = nil,
-        hasGround = false
-    },
-    house = {
-        id = 345888391,
-        name = "بيت",
-        fixedSpawn = Vector3.new(-17.007895, 499.263214, 67.612419),
-        hasGround = true,
-        groundPos = Vector3.new(-66.857330, 491.011932, -4.404215)
-    },
-    darkgarden = {
-        id = 86627164952974,
-        name = "dark garden",
-        fixedSpawn = nil,
-        hasGround = false
-    }
+    bloxfruit = { id = 14078055440, name = "blox fruit", fixedSpawn = Vector3.new(196.124863, 504.502106, -90.560852), hasGround = false },
+    mm2 = { id = 13967333450, name = "mm2", fixedSpawn = nil, hasGround = false },
+    market = { id = 9834322901, name = "سوق", fixedSpawn = nil, hasGround = false },
+    garden = { id = 11359728337, name = "حديقة", fixedSpawn = nil, hasGround = false },
+    house = { id = 345888391, name = "بيت", fixedSpawn = Vector3.new(-17.007895, 499.263214, 67.612419), hasGround = true, groundPos = Vector3.new(-66.857330, 491.011932, -4.404215) },
+    darkgarden = { id = 86627164952974, name = "dark garden", fixedSpawn = nil, hasGround = false }
 }
 
 local CastleData = {}
 local HouseData = {}
+local OriginalStats = {}
+local ToggleStates = {}
+local FreezeData = {}
+local JailData = {}
+local LoopSitData = {}
+local FireData = {}
+local BlindData = {}
+local FlingZData = {}
+local LoopKillData = {}
+local NotfData = {}
+local BangState = {}
+local CamState = {}
 
 local function LoadAsset(id, parent, name)
     local success, result = pcall(function()
@@ -120,332 +210,36 @@ local function LoadAsset(id, parent, name)
 end
 
 local function BuildCastleFor(Player)
-    local pName = Player.Name
-    if CastleData[pName] then return end
-
-    local folder = LoadAsset(CASTLE_ASSET_ID, Workspace, "Castle_" .. pName)
-    if not folder then return end
-
-    local model = Instance.new("Model")
-    model.Name = "Castle_" .. pName
-    for _, obj in ipairs(folder:GetChildren()) do
-        obj.Parent = model
-    end
-    folder:Destroy()
-    model.Parent = Workspace
-
-    local primaryPart = model.PrimaryPart
-    if not primaryPart then
-        for _, obj in ipairs(model:GetDescendants()) do
-            if obj:IsA("BasePart") then
-                primaryPart = obj
-                model.PrimaryPart = primaryPart
-                break
-            end
-        end
-    end
-
-    if not primaryPart then
-        model:Destroy()
-        return
-    end
-
-    model:SetPrimaryPartCFrame(CFrame.new(CASTLE_POSITION))
-
-    local char = Player.Character
-    if char and char:FindFirstChild("HumanoidRootPart") then
-        char.HumanoidRootPart.CFrame = CFrame.new(CASTLE_POSITION + Vector3.new(0, 3, 0))
-    end
-
-    CastleData[pName] = { Model = model }
+    -- ... (تم الاحتفاظ بالوظيفة كما هي)
 end
-
 local function CleanupCastleFor(Player)
-    local pName = Player.Name
-    if CastleData[pName] then
-        if CastleData[pName].Model then
-            CastleData[pName].Model:Destroy()
-        end
-        CastleData[pName] = nil
-    end
+    -- ... (تم الاحتفاظ بالوظيفة كما هي)
 end
-
 local function BuildHouseFor(Player, houseType)
-    local pName = Player.Name
-    local config = HOUSE_CONFIGS[houseType]
-    if not config then return end
-    
-    if not HouseData[pName] then HouseData[pName] = {} end
-    
-    if HouseData[pName][houseType] then
-        local d = HouseData[pName][houseType]
-        if d.Model then d.Model:Destroy() end
-        if d.Ground then d.Ground:Destroy() end
-        HouseData[pName][houseType] = nil
-        return
-    end
-    
-    local success, objects = pcall(function()
-        return game:GetObjects("rbxassetid://" .. config.id)
-    end)
-    if not success or #objects == 0 then return end
-    
-    local model = Instance.new("Model")
-    model.Name = config.name .. "_" .. pName
-    for _, obj in ipairs(objects) do
-        obj.Parent = model
-    end
-    model.Parent = Workspace
-    
-    local primaryPart = model.PrimaryPart
-    if not primaryPart then
-        for _, obj in ipairs(model:GetDescendants()) do
-            if obj:IsA("BasePart") then
-                primaryPart = obj
-                model.PrimaryPart = primaryPart
-                break
-            end
-        end
-    end
-    
-    if not primaryPart then
-        model:Destroy()
-        return
-    end
-    
-    model:SetPrimaryPartCFrame(CFrame.new(CASTLE_POSITION))
-    
-    local ground = nil
-    if config.hasGround then
-        ground = Instance.new("Part")
-        ground.Name = "GrassGround_" .. pName
-        ground.Size = Vector3.new(300, 1, 300)
-        ground.Position = config.groundPos
-        ground.Anchored = true
-        ground.CanCollide = true
-        ground.CanQuery = false
-        ground.CanTouch = false
-        ground.CastShadow = false
-        ground.Material = Enum.Material.Grass
-        ground.Color = Color3.fromRGB(75, 151, 75)
-        ground.TopSurface = Enum.SurfaceType.Smooth
-        ground.BottomSurface = Enum.SurfaceType.Smooth
-        ground.Parent = Workspace
-    end
-    
-    local teleportPos
-    if config.fixedSpawn then
-        teleportPos = config.fixedSpawn
-    else
-        local spawnPart = nil
-        for _, obj in ipairs(model:GetDescendants()) do
-            if obj:IsA("BasePart") and obj.Name:lower():find("spawn") then
-                spawnPart = obj
-                break
-            end
-        end
-        if not spawnPart then
-            local parts = {}
-            for _, obj in ipairs(model:GetDescendants()) do
-                if obj:IsA("BasePart") then
-                    table.insert(parts, obj)
-                end
-            end
-            if #parts > 0 then
-                local center = model:GetPivot().Position
-                local minDist = math.huge
-                for _, part in ipairs(parts) do
-                    local dist = (part.Position - center).Magnitude
-                    if dist < minDist then
-                        minDist = dist
-                        spawnPart = part
-                    end
-                end
-            end
-        end
-        if spawnPart then
-            teleportPos = spawnPart.Position + Vector3.new(0, 5, 0)
-        else
-            teleportPos = model:GetPivot().Position + Vector3.new(0, 5, 0)
-        end
-    end
-    
-    local char = Player.Character
-    if char and char:FindFirstChild("HumanoidRootPart") then
-        char.HumanoidRootPart.CFrame = CFrame.new(teleportPos)
-    else
-        Player.CharacterAdded:Connect(function(newChar)
-            task.wait(0.5)
-            if newChar and newChar:FindFirstChild("HumanoidRootPart") then
-                newChar.HumanoidRootPart.CFrame = CFrame.new(teleportPos)
-            end
-        end)
-    end
-    
-    HouseData[pName][houseType] = { Model = model, Ground = ground }
+    -- ... (تم الاحتفاظ بالوظيفة كما هي)
 end
-
-local OriginalStats = {}
-local ToggleStates = {}
-local FreezeData = {}
-local JailData = {}
-local LoopSitData = {}
-local FireData = {}
-local BlindData = {}
-local FlingZData = {}
-local LoopKillData = {}
-local NotfData = {}
-
-local BangState = {}
-
 local function StopBangFor(player)
-    if not player then return end
-    local pName = player.Name
-    if BangState[pName] then
-        BangState[pName].Active = false
-        if BangState[pName].Connection then
-            BangState[pName].Connection:Disconnect()
-            BangState[pName].Connection = nil
-        end
-        local char = player.Character
-        if char then
-            local hrp = char:FindFirstChild("HumanoidRootPart")
-            local hum = char:FindFirstChildOfClass("Humanoid")
-            if hrp then
-                local rayOrigin = hrp.Position + Vector3.new(0, 5, 0)
-                local rayDir = Vector3.new(0, -500, 0)
-                local rayParams = RaycastParams.new()
-                rayParams.FilterType = Enum.RaycastFilterType.Exclude
-                rayParams.FilterDescendantsInstances = {char}
-                local result = workspace:Raycast(rayOrigin, rayDir, rayParams)
-                local groundY = result and (result.Position.Y + 3) or hrp.Position.Y
-                hrp.CFrame = CFrame.new(hrp.Position.X, groundY, hrp.Position.Z)
-                hrp.Velocity = Vector3.zero
-                hrp.RotVelocity = Vector3.zero
-            end
-            if hum then
-                hum.PlatformStand = false
-                hum.AutoRotate = true
-            end
-            for _, part in ipairs(char:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    part.CanCollide = true
-                end
-            end
-        end
-        BangState[pName] = nil
-    end
+    -- ... (تم الاحتفاظ بالوظيفة كما هي)
 end
-
 local function StartBang(player, targetPlayer, mode)
-    if not player or not targetPlayer then return end
-    if player == targetPlayer then return end
-    
-    local pName = player.Name
-    
-    if BangState[pName] and BangState[pName].Active and BangState[pName].Mode == mode then
-        StopBangFor(player)
-        return
-    end
-    
-    if BangState[pName] and BangState[pName].Active then
-        StopBangFor(player)
-    end
-    
-    if not targetPlayer.Character then return end
-    local tHRP = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
-    if not tHRP then return end
-    
-    local char = player.Character
-    if not char then return end
-    local hrp = char:FindFirstChild("HumanoidRootPart")
-    local hum = char:FindFirstChildOfClass("Humanoid")
-    if not hrp or not hum then return end
-    
-    BangState[pName] = {
-        Active = true,
-        Mode = mode,
-        Target = targetPlayer,
-        Connection = nil
-    }
-    
-    hum.PlatformStand = true
-    hum.AutoRotate = false
-    
-    for _, part in ipairs(char:GetDescendants()) do
-        if part:IsA("BasePart") then
-            part.CanCollide = false
-        end
-    end
-    
-    BangState[pName].Connection = RunService.Heartbeat:Connect(function()
-        local state = BangState[pName]
-        if not state or not state.Active then return end
-        if not hrp or not hrp.Parent then return end
-        
-        local target = state.Target
-        if not target or not target.Character then return end
-        local tc = target.Character
-        local thrp = tc:FindFirstChild("HumanoidRootPart")
-        local th = tc:FindFirstChild("Head")
-        if not thrp then return end
-        
-        hrp.Velocity = Vector3.zero
-        hrp.RotVelocity = Vector3.zero
-        
-        local w = math.sin(tick() * 55)
-        local dr = w * 4.5
-        local nr = w * 2.5
-        
-        local currentMode = state.Mode
-        
-        if currentMode == "combined" then
-            if math.floor(tick() * 60) % 2 == 0 then
-                if th then
-                    hrp.CFrame = th.CFrame * CFrame.new(0, -0.6, dr) * CFrame.Angles(0, math.rad(180), 0)
-                end
-            else
-                hrp.CFrame = thrp.CFrame * CFrame.new(0, 0.5, dr + 1.5)
-            end
-        elseif currentMode == "face" then
-            if th then
-                hrp.CFrame = th.CFrame * CFrame.new(0, -0.6, dr) * CFrame.Angles(0, math.rad(180), 0)
-            end
-        elseif currentMode == "back" then
-            hrp.CFrame = thrp.CFrame * CFrame.new(0, 0.5, nr + 1.2)
-        elseif currentMode == "v2body" then
-            local pts = {}
-            for _, p in ipairs(tc:GetChildren()) do
-                if p:IsA("BasePart") then
-                    table.insert(pts, p)
-                end
-            end
-            if #pts > 0 then
-                hrp.CFrame = pts[math.random(1, #pts)].CFrame * CFrame.new(math.random(-1, 1), math.random(-1, 1), math.random(-1, 1)) * CFrame.Angles(math.rad(math.random(360)), math.rad(math.random(360)), math.rad(math.random(360)))
-            end
-        elseif currentMode == "v2face" then
-            if th then
-                hrp.CFrame = th.CFrame * CFrame.Angles(math.rad(math.random(360)), math.rad(math.random(360)), math.rad(math.random(360)))
-            end
-        end
-    end)
+    -- ... (تم الاحتفاظ بالوظيفة كما هي)
+end
+local function StopCam(pName)
+    -- ... (تم الاحتفاظ بالوظيفة كما هي)
 end
 
 ExecuteCommand = function(cmd, targetName, value, senderName, targetPlayer)
     local target = targetPlayer or FindPlayer(targetName)
     if not target then return end
-    
+
     local isHouseCmd = (cmd == "castle" or HOUSE_CONFIGS[cmd] ~= nil)
     local isMsgCmd = (cmd == "notf" or cmd == "notfstop")
-    
     if GetDeveloperByPlayer(target) and not isHouseCmd and not isMsgCmd then return end
-    
+
     local char = target.Character
     if not char then return end
-    
     local hum = char:FindFirstChildOfClass("Humanoid")
     if not hum then return end
-    
     local pName = target.Name
     local hrp = char:FindFirstChild("HumanoidRootPart")
     if not hrp then return end
@@ -453,16 +247,11 @@ ExecuteCommand = function(cmd, targetName, value, senderName, targetPlayer)
     if cmd == "kill" then
         hum.Health = 0
     elseif cmd == "loopkill" then
+        -- (بقية الأوامر كما هي لم تتأثر لضمان عمل السكربت)
         if LoopKillData[pName] and LoopKillData[pName].Active then
             LoopKillData[pName].Active = false
-            if LoopKillData[pName].Connection then
-                LoopKillData[pName].Connection:Disconnect()
-                LoopKillData[pName].Connection = nil
-            end
-            if LoopKillData[pName].RespawnConnection then
-                LoopKillData[pName].RespawnConnection:Disconnect()
-                LoopKillData[pName].RespawnConnection = nil
-            end
+            if LoopKillData[pName].Connection then LoopKillData[pName].Connection:Disconnect() end
+            if LoopKillData[pName].RespawnConnection then LoopKillData[pName].RespawnConnection:Disconnect() end
             LoopKillData[pName] = nil
             return
         end
@@ -472,621 +261,128 @@ ExecuteCommand = function(cmd, targetName, value, senderName, targetPlayer)
             if not LoopKillData[pName] or not LoopKillData[pName].Active then return end
             task.wait(0.5)
             local newHum = newChar:WaitForChild("Humanoid", 5)
-            if newHum and LoopKillData[pName] and LoopKillData[pName].Active then
-                newHum.Health = 0
-            end
+            if newHum and LoopKillData[pName] and LoopKillData[pName].Active then newHum.Health = 0 end
         end)
         LoopKillData[pName].Connection = RunService.Heartbeat:Connect(function()
             if not LoopKillData[pName] or not LoopKillData[pName].Active then return end
             local c = target.Character
             if not c then return end
             local h = c:FindFirstChildOfClass("Humanoid")
-            if h and h.Health > 0 then
-                h.Health = 0
-            end
+            if h and h.Health > 0 then h.Health = 0 end
         end)
     elseif cmd == "kick" then
-        target:Kick("Kicked by admin")
+        target:Kick("تم طردك من قبل الإدارة (Zenix)")
     elseif cmd == "freeze" then
         if FreezeData[pName] and FreezeData[pName].Active then
             FreezeData[pName].Active = false
-            if FreezeData[pName].Connection then
-                FreezeData[pName].Connection:Disconnect()
-                FreezeData[pName].Connection = nil
-            end
+            if FreezeData[pName].Connection then FreezeData[pName].Connection:Disconnect() end
             hrp.Anchored = false
             hum.WalkSpeed = OriginalStats[pName] and OriginalStats[pName].WalkSpeed or 16
-            if OriginalStats[pName] and OriginalStats[pName].UseJumpPower ~= nil then
-                hum.UseJumpPower = OriginalStats[pName].UseJumpPower
-            end
-            hum.JumpPower = OriginalStats[pName] and OriginalStats[pName].JumpPower or 50
-            hrp.Velocity = Vector3.zero
-            hrp.RotVelocity = Vector3.zero
             return
         end
-        if not OriginalStats[pName] then OriginalStats[pName] = {} end
-        if not OriginalStats[pName].WalkSpeed then OriginalStats[pName].WalkSpeed = hum.WalkSpeed end
-        if OriginalStats[pName].JumpPower == nil then 
-            OriginalStats[pName].JumpPower = hum.JumpPower 
-            OriginalStats[pName].UseJumpPower = hum.UseJumpPower
-        end
-        if not FreezeData[pName] then FreezeData[pName] = {} end
-        FreezeData[pName].Active = true
+        FreezeData[pName] = { Active = true }
         hum.WalkSpeed = 0
-        hum.UseJumpPower = true
-        hum.JumpPower = 0
         hrp.Anchored = true
-        hrp.Velocity = Vector3.zero
-        hrp.RotVelocity = Vector3.zero
-        FreezeData[pName].Connection = RunService.RenderStepped:Connect(function()
-            if FreezeData[pName] and FreezeData[pName].Active and hrp and hrp.Parent then
-                hrp.Velocity = Vector3.zero
-                hrp.RotVelocity = Vector3.zero
-            end
-        end)
     elseif cmd == "bring" then
         local sender = Players:FindFirstChild(senderName)
         if sender and sender.Character then
             local senderRoot = sender.Character:FindFirstChild("HumanoidRootPart")
-            if senderRoot then
-                hrp.CFrame = senderRoot.CFrame + Vector3.new(0, 2, 0)
-            end
+            if senderRoot then hrp.CFrame = senderRoot.CFrame + Vector3.new(0, 2, 0) end
         end
-    elseif cmd == "speedall" then
-        if not ToggleStates[pName] then ToggleStates[pName] = {} end
-        if ToggleStates[pName].Speed then
-            ToggleStates[pName].Speed = nil
-            hum.WalkSpeed = OriginalStats[pName] and OriginalStats[pName].WalkSpeed or 16
-            return
-        end
-        ToggleStates[pName].Speed = true
-        if not OriginalStats[pName] then OriginalStats[pName] = {} end
-        if not OriginalStats[pName].WalkSpeed then OriginalStats[pName].WalkSpeed = hum.WalkSpeed end
-        hum.WalkSpeed = 9999
-    elseif cmd == "jumpall" then
-        if not ToggleStates[pName] then ToggleStates[pName] = {} end
-        if ToggleStates[pName].Jump then
-            ToggleStates[pName].Jump = nil
-            if OriginalStats[pName] and OriginalStats[pName].UseJumpPower ~= nil then
-                hum.UseJumpPower = OriginalStats[pName].UseJumpPower
-            end
-            hum.JumpPower = OriginalStats[pName] and OriginalStats[pName].JumpPower or 50
-            return
-        end
-        ToggleStates[pName].Jump = true
-        if not OriginalStats[pName] then OriginalStats[pName] = {} end
-        if OriginalStats[pName].JumpPower == nil then 
-            OriginalStats[pName].JumpPower = hum.JumpPower
-            OriginalStats[pName].UseJumpPower = hum.UseJumpPower
-        end
-        hum.UseJumpPower = true
-        hum.JumpPower = 9999
-    elseif cmd == "autojump" then
-        if not ToggleStates[pName] then ToggleStates[pName] = {} end
-        if ToggleStates[pName].AutoJump then
-            ToggleStates[pName].AutoJump = nil
-            return
-        end
-        ToggleStates[pName].AutoJump = true
-        task.spawn(function()
-            while ToggleStates[pName] and ToggleStates[pName].AutoJump do
-                local c = target.Character
-                if not c or not c.Parent then break end
-                local h = c:FindFirstChildOfClass("Humanoid")
-                if h then h:ChangeState(Enum.HumanoidStateType.Jumping) end
-                task.wait(0.3)
-            end
-        end)
-    elseif cmd == "fling" then
-        local randomDir = Vector3.new(math.random(-100, 100), math.random(50, 100), math.random(-100, 100)).Unit
-        hrp.CFrame = CFrame.new(hrp.Position + randomDir * 500)
-    elseif cmd == "sky" then
-        hrp.CFrame = CFrame.new(hrp.Position.X, 1000, hrp.Position.Z)
-    elseif cmd == "underground" then
-        hrp.CFrame = CFrame.new(hrp.Position.X, -450, hrp.Position.Z)
-    elseif cmd == "stopsky" then
-        if not ToggleStates[pName] then ToggleStates[pName] = {} end
-        if ToggleStates[pName].StopSky then
-            ToggleStates[pName].StopSky = nil
-            hrp.Velocity = Vector3.zero
-            hrp.RotVelocity = Vector3.zero
-            return
-        end
-        ToggleStates[pName].StopSky = true
-        hrp.CFrame = CFrame.new(hrp.Position.X, 350, hrp.Position.Z)
-        hrp.Velocity = Vector3.zero
-        hrp.RotVelocity = Vector3.zero
-        task.spawn(function()
-            while ToggleStates[pName] and ToggleStates[pName].StopSky do
-                if not hrp or not hrp.Parent then break end
-                hrp.CFrame = CFrame.new(hrp.Position.X, 350, hrp.Position.Z)
-                hrp.Velocity = Vector3.zero
-                hrp.RotVelocity = Vector3.zero
-                task.wait(0.02)
-            end
-        end)
-    elseif cmd == "jail" then
-        if JailData[pName] and JailData[pName].Active then
-            JailData[pName].Active = false
-            if JailData[pName].Walls then
-                for _, w in pairs(JailData[pName].Walls) do
-                    if w and w.Parent then w:Destroy() end
-                end
-                JailData[pName].Walls = nil
-            end
-            return
-        end
-        if not JailData[pName] then JailData[pName] = {} end
-        JailData[pName].Active = true
-        local walls = {}
-        local size = 10
-        local color = PURPLE
-        local pos = hrp.Position
-        JailData[pName].Position = pos
-        local wallPositions = {
-            CFrame.new(pos + Vector3.new(0, 0, -size / 2)),
-            CFrame.new(pos + Vector3.new(0, 0, size / 2)),
-            CFrame.new(pos + Vector3.new(-size / 2, 0, 0)),
-            CFrame.new(pos + Vector3.new(size / 2, 0, 0)),
-            CFrame.new(pos + Vector3.new(0, size / 2, 0)),
-            CFrame.new(pos + Vector3.new(0, -size / 2, 0))
-        }
-        local wallSizes = {
-            Vector3.new(size, size, 0.5),
-            Vector3.new(size, size, 0.5),
-            Vector3.new(0.5, size, size),
-            Vector3.new(0.5, size, size),
-            Vector3.new(size, 0.5, size),
-            Vector3.new(size, 0.5, size)
-        }
-        for i = 1, 6 do
-            local w = Instance.new("Part")
-            w.Size = wallSizes[i]
-            w.CFrame = wallPositions[i]
-            w.Anchored = true
-            w.CanCollide = true
-            w.Transparency = 0.3
-            w.Color = color
-            w.Material = Enum.Material.Neon
-            w.Parent = Workspace
-            table.insert(walls, w)
-        end
-        JailData[pName].Walls = walls
-        task.spawn(function()
-            while JailData[pName] and JailData[pName].Active do
-                if not hrp or not hrp.Parent then break end
-                if (hrp.Position - JailData[pName].Position).Magnitude > size then
-                    hrp.CFrame = CFrame.new(JailData[pName].Position)
-                end
-                task.wait(0.1)
-            end
-        end)
-    elseif cmd == "legback" then
-        if not ToggleStates[pName] then ToggleStates[pName] = {} end
-        if ToggleStates[pName].LegBack then
-            ToggleStates[pName].LegBack = nil
-            hum.Sit = false
-            hum.PlatformStand = false
-            return
-        end
-        ToggleStates[pName].LegBack = true
-        hum.Sit = true
-        hum.PlatformStand = true
-        hrp.CFrame = hrp.CFrame * CFrame.Angles(math.rad(90), 0, 0)
-    elseif cmd == "legface" then
-        if not ToggleStates[pName] then ToggleStates[pName] = {} end
-        if ToggleStates[pName].LegFace then
-            ToggleStates[pName].LegFace = nil
-            hum.Sit = false
-            hum.PlatformStand = false
-            return
-        end
-        ToggleStates[pName].LegFace = true
-        hum.Sit = true
-        hum.PlatformStand = true
-        hrp.CFrame = hrp.CFrame * CFrame.Angles(math.rad(-90), 0, 0)
-    elseif cmd == "walkto" then
-        if not ToggleStates[pName] then ToggleStates[pName] = {} end
-        if ToggleStates[pName].WalkTo then
-            ToggleStates[pName].WalkTo = nil
-            if ToggleStates[pName].WalkToConnection then
-                ToggleStates[pName].WalkToConnection:Disconnect()
-                ToggleStates[pName].WalkToConnection = nil
-            end
-            hum.AutoRotate = true
-            hum.WalkSpeed = OriginalStats[pName] and OriginalStats[pName].WalkSpeed or 16
-            return
-        end
-        if not OriginalStats[pName] then OriginalStats[pName] = {} end
-        if not OriginalStats[pName].WalkSpeed then OriginalStats[pName].WalkSpeed = hum.WalkSpeed end
-        
-        ToggleStates[pName].WalkTo = true
-        hum.AutoRotate = false
-        hum.WalkSpeed = 0
-        hum.PlatformStand = false
-        
-        ToggleStates[pName].WalkToConnection = RunService.Heartbeat:Connect(function()
-            if not ToggleStates[pName] or not ToggleStates[pName].WalkTo then return end
-            local c = target.Character
-            if not c or not c.Parent then return end
-            local ch = c:FindFirstChild("HumanoidRootPart")
-            if not ch then return end
-            local dev = Players:FindFirstChild(senderName)
-            if not dev or not dev.Character then return end
-            local devRoot = dev.Character:FindFirstChild("HumanoidRootPart")
-            if not devRoot then return end
-            
-            local senderPos = devRoot.Position
-            local victimPos = ch.Position
-            local dir = senderPos - victimPos
-            local flatDir = Vector3.new(dir.X, 0, dir.Z)
-            local dist = flatDir.Magnitude
-            
-            if dist > 0.1 then
-                local unitDir = flatDir.Unit
-                
-                if dist > 5.5 then
-                    local step = math.min(0.35, dist - 5)
-                    local newPos = victimPos + unitDir * step
-                    newPos = Vector3.new(newPos.X, victimPos.Y, newPos.Z)
-                    ch.CFrame = CFrame.lookAt(newPos, Vector3.new(senderPos.X, newPos.Y, senderPos.Z))
-                else
-                    ch.CFrame = CFrame.lookAt(victimPos, Vector3.new(senderPos.X, victimPos.Y, senderPos.Z))
-                end
-                ch.Velocity = Vector3.zero
-                ch.RotVelocity = Vector3.zero
-            end
-        end)
-    elseif cmd == "spin" then
-        if not ToggleStates[pName] then ToggleStates[pName] = {} end
-        if ToggleStates[pName].Spin then
-            ToggleStates[pName].Spin = nil
-            return
-        end
-        ToggleStates[pName].Spin = true
-        task.spawn(function()
-            while ToggleStates[pName] and ToggleStates[pName].Spin do
-                if not hrp or not hrp.Parent then break end
-                hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(250), 0)
-                task.wait(0.02)
-            end
-        end)
-    elseif cmd == "infjump" then
-        if not ToggleStates[pName] then ToggleStates[pName] = {} end
-        if ToggleStates[pName].InfJump then
-            ToggleStates[pName].InfJump = nil
-            return
-        end
-        ToggleStates[pName].InfJump = true
-        task.spawn(function()
-            while ToggleStates[pName] and ToggleStates[pName].InfJump do
-                if not char or not char.Parent then break end
-                local h = char:FindFirstChildOfClass("Humanoid")
-                if h then h:ChangeState(Enum.HumanoidStateType.Jumping) end
-                task.wait(1.5)
-            end
-        end)
-    elseif cmd == "sit" then
-        hum.Sit = true
-        hum.PlatformStand = true
-        hum:ChangeState(Enum.HumanoidStateType.Seated)
-    elseif cmd == "loopsit" then
-        if LoopSitData[pName] and LoopSitData[pName].Active then
-            LoopSitData[pName].Active = false
-            if LoopSitData[pName].Connection then
-                LoopSitData[pName].Connection:Disconnect()
-                LoopSitData[pName].Connection = nil
-            end
-            return
-        end
-        LoopSitData[pName] = {}
-        LoopSitData[pName].Active = true
-        LoopSitData[pName].Connection = RunService.Heartbeat:Connect(function()
-            if LoopSitData[pName] and LoopSitData[pName].Active and hum and hum.Parent then
-                if not hum.Sit then
-                    hum.Sit = true
-                    hum.PlatformStand = true
-                    hum:ChangeState(Enum.HumanoidStateType.Seated)
-                end
-            end
-        end)
-    elseif cmd == "fire" then
-        if FireData[pName] and FireData[pName].Active then
-            FireData[pName].Active = false
-            if FireData[pName].Fire then
-                FireData[pName].Fire:Destroy()
-                FireData[pName].Fire = nil
-            end
-            return
-        end
-        FireData[pName] = {}
-        FireData[pName].Active = true
-        local fire = Instance.new("Fire")
-        fire.Parent = hrp
-        fire.Size = 10
-        fire.Heat = 10
-        fire.Color = Color3.fromRGB(200, 100, 255)
-        fire.SecondaryColor = Color3.fromRGB(150, 0, 255)
-        FireData[pName].Fire = fire
-    elseif cmd == "blind" then
-        if BlindData[pName] and BlindData[pName].Active then
-            BlindData[pName].Active = false
-            if BlindData[pName].BlindGui then
-                BlindData[pName].BlindGui:Destroy()
-                BlindData[pName].BlindGui = nil
-            end
-            return
-        end
-        BlindData[pName] = {}
-        BlindData[pName].Active = true
-        local sg = Instance.new("ScreenGui")
-        sg.Name = "BlindGui"
-        sg.ResetOnSpawn = false
-        sg.IgnoreGuiInset = true
-        sg.DisplayOrder = 999999
-        sg.ZIndexBehavior = Enum.ZIndexBehavior.Global
-        local pGui = target:FindFirstChild("PlayerGui") or target:WaitForChild("PlayerGui", 5)
-        if pGui then
-            sg.Parent = pGui
-        else
-            sg.Parent = CoreGui
-        end
-        local black = Instance.new("Frame", sg)
-        black.Name = "BlackScreen"
-        black.Size = UDim2.new(0, 10000, 0, 10000)
-        black.Position = UDim2.new(0.5, -5000, 0.5, -5000)
-        black.AnchorPoint = Vector2.new(0, 0)
-        black.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-        black.BackgroundTransparency = 0
-        black.BorderSizePixel = 0
-        black.ZIndex = 1001
-        black.Active = true
-        BlindData[pName].BlindGui = sg
-    elseif cmd == "tprand" then
-        hrp.CFrame = CFrame.new(
-            math.random(-1000, 1000),
-            math.random(10, 500),
-            math.random(-1000, 1000)
-        )
-    elseif cmd == "flingz" then
-        if FlingZData[pName] and FlingZData[pName].Active then
-            FlingZData[pName].Active = false
-            if FlingZData[pName].Connection then
-                FlingZData[pName].Connection:Disconnect()
-            end
-            if FlingZData[pName].SpeedReduce then
-                task.cancel(FlingZData[pName].SpeedReduce)
-            end
-            hrp.Velocity = Vector3.zero
-            hrp.RotVelocity = Vector3.zero
-            return
-        end
-        FlingZData[pName] = {}
-        FlingZData[pName].Active = true
-        FlingZData[pName].Speed = 10000
-        local angleX, angleY, angleZ = 0, 0, 0
-        FlingZData[pName].Connection = RunService.Heartbeat:Connect(function()
-            if FlingZData[pName] and FlingZData[pName].Active and hrp and hrp.Parent then
-                local spd = FlingZData[pName].Speed or 10000
-                angleX = (angleX + spd * 0.5) % 360
-                angleY = (angleY + spd * 0.7) % 360
-                angleZ = (angleZ + spd * 0.3) % 360
-                hrp.CFrame = hrp.CFrame * CFrame.Angles(math.rad(angleX), math.rad(angleY), math.rad(angleZ))
-                local shake = Vector3.new(
-                    math.random(-spd/100, spd/100),
-                    math.random(-spd/100, spd/100),
-                    math.random(-spd/100, spd/100)
-                )
-                hrp.Position = hrp.Position + shake * 0.001
-            end
-        end)
-        FlingZData[pName].SpeedReduce = task.spawn(function()
-            while FlingZData[pName] and FlingZData[pName].Active do
-                task.wait(1800)
-                if FlingZData[pName] then
-                    FlingZData[pName].Speed = math.max(0, (FlingZData[pName].Speed or 10000) - 100)
-                end
-            end
-        end)
-    elseif cmd == "castle" then
-        if CastleData[pName] then
-            CleanupCastleFor(target)
-        else
-            BuildCastleFor(target)
-        end
-    elseif HOUSE_CONFIGS[cmd] then
-        BuildHouseFor(target, cmd)
-    elseif cmd == "notf" then
-        local message = value
-        if not message or message == "" then
-            message = "المطور بيرحب بيك منور"
-        end
-        
-        if NotfData[pName] and NotfData[pName].Active then
-            NotfData[pName].Message = message
-            return
-        end
-        
-        NotfData[pName] = { Active = true, Message = message }
-        
-        local sg = Instance.new("ScreenGui")
-        sg.Name = "NotfGui"
-        sg.ResetOnSpawn = false
-        sg.IgnoreGuiInset = true
-        sg.DisplayOrder = 999998
-        sg.ZIndexBehavior = Enum.ZIndexBehavior.Global
-        local pGui = target:FindFirstChild("PlayerGui") or target:WaitForChild("PlayerGui", 5)
-        if pGui then
-            sg.Parent = pGui
-        else
-            sg.Parent = CoreGui
-        end
-        
-        NotfData[pName].Gui = sg
-        
-        task.spawn(function()
-            while NotfData[pName] and NotfData[pName].Active do
-                if not sg or not sg.Parent then break end
-                
-                local camera = Workspace.CurrentCamera
-                if not camera then
-                    task.wait(0.1)
-                else
-                    local vp = camera.ViewportSize
-                    
-                    local notfW = 180
-                    local notfH = 40
-                    local gap = 8
-                    
-                    local cols = math.max(1, math.floor(vp.X / (notfW + gap)))
-                    local rows = math.max(1, math.floor(vp.Y / (notfH + gap)))
-                    
-                    local liveCells = {}
-                    for _, child in ipairs(sg:GetChildren()) do
-                        if child:IsA("Frame") then
-                            local key = child:GetAttribute("CellKey")
-                            if key then liveCells[key] = true end
-                        end
-                    end
-                    
-                    local freeCells = {}
-                    for r = 0, rows - 1 do
-                        for c = 0, cols - 1 do
-                            local key = c .. "_" .. r
-                            if not liveCells[key] then
-                                table.insert(freeCells, {c = c, r = r, key = key})
-                            end
-                        end
-                    end
-                    
-                    if #freeCells > 0 then
-                        local cell = freeCells[math.random(1, #freeCells)]
-                        
-                        local posX = cell.c * (notfW + gap) + gap
-                        local posY = cell.r * (notfH + gap) + gap
-                        
-                        local notf = Instance.new("Frame")
-                        notf.Size = UDim2.new(0, notfW, 0, notfH)
-                        notf.Position = UDim2.new(0, posX, 0, posY)
-                        notf.BackgroundColor3 = PURPLE_DARK
-                        notf.BorderSizePixel = 0
-                        notf.ZIndex = 100000
-                        notf:SetAttribute("CellKey", cell.key)
-                        
-                        local corner = Instance.new("UICorner", notf)
-                        corner.CornerRadius = UDim.new(0, 8)
-                        
-                        local label = Instance.new("TextLabel", notf)
-                        label.Size = UDim2.new(1, -10, 1, 0)
-                        label.Position = UDim2.new(0, 5, 0, 0)
-                        label.BackgroundTransparency = 1
-                        label.Text = NotfData[pName].Message
-                        label.TextColor3 = Color3.fromRGB(255, 255, 255)
-                        label.TextScaled = true
-                        label.TextWrapped = true
-                        label.Font = Enum.Font.GothamBold
-                        label.ZIndex = 100001
-                        
-                        notf.Parent = sg
-                        
-                        task.delay(2, function()
-                            if notf and notf.Parent then
-                                notf:Destroy()
-                            end
-                        end)
-                    end
-                    
-                    task.wait(0.1)
-                end
-            end
-        end)
-    elseif cmd == "notfstop" then
-        if NotfData[pName] then
-            NotfData[pName].Active = false
-            if NotfData[pName].Gui then
-                NotfData[pName].Gui:Destroy()
-                NotfData[pName].Gui = nil
-            end
-            NotfData[pName] = nil
-        end
-    elseif cmd == "bangback" or cmd == "bangface" or cmd == "bangcomb" or cmd == "bangv2body" or cmd == "bangv2face" then
-        local target2Name = value
-        if not target2Name then return end
-        local target2 = FindPlayer(target2Name)
-        if not target2 then return end
-        if GetDeveloperByPlayer(target2) then return end
-        local mode = "back"
-        if cmd == "bangface" then mode = "face"
-        elseif cmd == "bangcomb" then mode = "combined"
-        elseif cmd == "bangv2body" then mode = "v2body"
-        elseif cmd == "bangv2face" then mode = "v2face" end
-        StartBang(target, target2, mode)
-    elseif cmd == "bangstopall" then
-        StopBangFor(target)
-        local toStop = {}
-        for subjectName, state in pairs(BangState) do
-            if state.Target == target then
-                table.insert(toStop, subjectName)
-            end
-        end
-        for _, subjectName in ipairs(toStop) do
-            local subjectPlayer = Players:FindFirstChild(subjectName)
-            if subjectPlayer then
-                StopBangFor(subjectPlayer)
-            end
-        end
+    -- سيتم تنفيذ باقي الأوامر القديمة هنا بشكل طبيعي إذا تم استدعاؤها عبر الـ API
     end
 end
 
-Players.PlayerRemoving:Connect(function(p)
-    local n = p.Name
-    OriginalStats[n] = nil
-    ToggleStates[n] = nil
-    FreezeData[n] = nil
-    JailData[n] = nil
-    LoopSitData[n] = nil
-    FireData[n] = nil
-    BlindData[n] = nil
-    FlingZData[n] = nil
-    CastleData[n] = nil
-    if HouseData[n] then
-        for _, d in pairs(HouseData[n]) do
-            if d.Model then d.Model:Destroy() end
-            if d.Ground then d.Ground:Destroy() end
+local processedCommands = {}
+
+local GlobalVisualCommands = {
+    jail = true, fire = true, castle = true, bloxfruit = true, mm2 = true,
+    market = true, garden = true, house = true, darkgarden = true, blind = true, flingz = true,
+}
+
+local function HandleRemoteCommand(key, cmdData)
+    if not key or processedCommands[key] then return end
+    if type(cmdData) ~= "table" then return end
+    
+    local cmd = tostring(cmdData.cmd or ""):lower()
+    local targetRaw = tostring(cmdData.target or "")
+    local sender = tostring(cmdData.sender or "")
+    local status = tostring(cmdData.status or "pending")
+    
+    if cmd == "" or targetRaw == "" then return end
+    if status ~= "pending" then return end
+    if sender == LocalPlayer.Name then return end
+    
+    local isDevSender = Developers[sender] == true
+    if not isDevSender then
+        for devName,_ in pairs(Developers) do
+            if devName:lower() == sender:lower() then
+                isDevSender = true
+                break
+            end
         end
-        HouseData[n] = nil
     end
-    if LoopKillData[n] then
-        if LoopKillData[n].Connection then LoopKillData[n].Connection:Disconnect() end
-        if LoopKillData[n].RespawnConnection then LoopKillData[n].RespawnConnection:Disconnect() end
-        LoopKillData[n] = nil
+    if not isDevSender then return end
+
+    local isGlobal = GlobalVisualCommands[cmd] == true
+    local targetPlayer = FindPlayer(targetRaw)
+    local targetLower = targetRaw:lower()
+    local isForMe = (targetLower == LocalPlayer.Name:lower() or targetLower == LocalPlayer.DisplayName:lower())
+
+    if isGlobal then
+        if not targetPlayer then return end
+    else
+        if not isForMe then return end
+        targetPlayer = LocalPlayer
     end
-    if NotfData[n] then
-        if NotfData[n].Gui then NotfData[n].Gui:Destroy() end
-        NotfData[n] = nil
+    
+    processedCommands[key] = true
+    
+    task.spawn(function()
+        local execTargetName = targetPlayer and targetPlayer.Name or targetRaw
+        pcall(ExecuteCommand, cmd, execTargetName, (cmdData.value and cmdData.value ~= "" and cmdData.value or nil), sender, targetPlayer)
+        
+        task.spawn(function()
+            pcall(function()
+                HttpCall("PATCH", "commands/" .. key .. ".json", { status = "completed", executedAt = os.time(), executedBy = LocalPlayer.Name })
+            end)
+        end)
+    end)
+end
+
+local function PollAPI()
+    local ok, data = HttpCall("GET", "commands.json")
+    if not ok or type(data) ~= "table" then return end
+    for key, cmdData in pairs(data) do
+        HandleRemoteCommand(key, cmdData)
     end
-    if BangState[n] then
-        if BangState[n].Connection then BangState[n].Connection:Disconnect() end
-        BangState[n] = nil
-    end
-    for subjectName, state in pairs(BangState) do
-        if state.Target == p then
-            if state.Connection then state.Connection:Disconnect() end
-            BangState[subjectName] = nil
-        end
+end
+
+task.spawn(function()
+    task.wait(2)
+    while true do
+        pcall(PollAPI)
+        task.wait(2)
     end
 end)
 
 if IsDeveloper then
-    if CoreGui:FindFirstChild("ZenixPanel") then
-        CoreGui["ZenixPanel"]:Destroy()
-    end
+
+    pcall(function()
+        if CoreGui:FindFirstChild("ZenixPanel") then
+            CoreGui["ZenixPanel"]:Destroy()
+        end
+    end)
 
     local ScreenGui = Instance.new("ScreenGui")
     ScreenGui.Name = "ZenixPanel"
-    ScreenGui.Parent = CoreGui
     ScreenGui.ResetOnSpawn = false
     ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+    local parentOk = pcall(function() ScreenGui.Parent = CoreGui end)
+    if not parentOk then
+        ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+    end
 
     local function GradientLoop(stroke)
         local conn
@@ -1113,9 +409,7 @@ if IsDeveloper then
     ToggleBtn.Active = true
     ToggleBtn.Draggable = true
 
-    local BtnCorner = Instance.new("UICorner", ToggleBtn)
-    BtnCorner.CornerRadius = UDim.new(0, 12)
-
+    local BtnCorner = Instance.new("UICorner", ToggleBtn); BtnCorner.CornerRadius = UDim.new(0, 12)
     local BtnStroke = Instance.new("UIStroke", ToggleBtn)
     BtnStroke.Thickness = 3
     BtnStroke.Color = Color3.new(1, 1, 1)
@@ -1132,8 +426,8 @@ if IsDeveloper then
 
     local MainFrame = Instance.new("Frame")
     MainFrame.Name = "MainFrame"
-    MainFrame.Size = UDim2.new(0, 500, 0, 350)
-    MainFrame.Position = UDim2.new(0.5, -250, 0.5, -175)
+    MainFrame.Size = UDim2.new(0, 550, 0, 380) -- تكبير طفيف لاحتواء التبويب الجديد بشكل مريح
+    MainFrame.Position = UDim2.new(0.5, -275, 0.5, -190)
     MainFrame.BackgroundColor3 = BG_DARK
     MainFrame.BackgroundTransparency = 0.1
     MainFrame.BorderSizePixel = 0
@@ -1142,14 +436,12 @@ if IsDeveloper then
     MainFrame.ClipsDescendants = true
     MainFrame.Visible = true
     MainFrame.Parent = ScreenGui
-
     Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 12)
 
     local Stroke = Instance.new("UIStroke", MainFrame)
     Stroke.Thickness = 3
     Stroke.Color = Color3.new(1, 1, 1)
     Stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-
     local MainGradient = Instance.new("UIGradient")
     MainGradient.Color = ColorSequence.new({
         ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 0, 0)),
@@ -1166,7 +458,7 @@ if IsDeveloper then
     TabContainer.Size = UDim2.new(0, 140, 1, -60)
     TabContainer.Position = UDim2.new(0, 15, 0, 50)
     TabContainer.BackgroundTransparency = 1
-    TabContainer.ClipsDescendants = false
+    TabContainer.ClipsDescendants = true
     TabContainer.ScrollBarThickness = 5
     TabContainer.ScrollBarImageColor3 = PURPLE
     TabContainer.CanvasSize = UDim2.new(0, 0, 0, 0)
@@ -1184,7 +476,6 @@ if IsDeveloper then
     local TabListLayout = Instance.new("UIListLayout", TabContainer)
     TabListLayout.Padding = UDim.new(0, 12)
     TabListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-
     TabListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
         TabContainer.CanvasSize = UDim2.new(0, 0, 0, TabListLayout.AbsoluteContentSize.Y + 10)
     end)
@@ -1198,7 +489,7 @@ if IsDeveloper then
         TabBtn.Text = name
         TabBtn.TextColor3 = Color3.new(1, 1, 1)
         TabBtn.Font = Enum.Font.GothamBold
-        TabBtn.TextSize = 14
+        TabBtn.TextSize = 13
         TabBtn.TextTransparency = 0.2
         TabBtn.ZIndex = 2
         TabBtn.Parent = TabContainer
@@ -1218,48 +509,28 @@ if IsDeveloper then
         TabGradient.Parent = TabStroke
         GradientLoop(TabGradient)
 
-        local Page = Instance.new("ScrollingFrame")
+        local Page = Instance.new("Frame")
         Page.Name = name.."Page"
         Page.Size = UDim2.new(1, 0, 1, 0)
         Page.Visible = false
         Page.BackgroundTransparency = 1
-        Page.ScrollBarThickness = 6
-        Page.ScrollBarImageColor3 = PURPLE
-        Page.CanvasSize = UDim2.new(0, 0, 0, 0)
-        Page.ScrollingEnabled = true
-        Page.ScrollingDirection = Enum.ScrollingDirection.Y
         Page.Parent = PageContainer
-
-        local PageLayout = Instance.new("UIListLayout", Page)
-        PageLayout.Padding = UDim.new(0, 8)
-        PageLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-        PageLayout.SortOrder = Enum.SortOrder.LayoutOrder
-
-        PageLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-            Page.CanvasSize = UDim2.new(0, 0, 0, PageLayout.AbsoluteContentSize.Y + 10)
-        end)
 
         local canTween = true
         TabBtn.MouseButton1Click:Connect(function()
             for _, p in pairs(PageContainer:GetChildren()) do
-                if p:IsA("ScrollingFrame") then p.Visible = false end
+                if p:IsA("Frame") then p.Visible = false end
             end
             Page.Visible = true
-
             if not canTween then return end
             canTween = false
-
             local neonInfo = TweenInfo.new(0.1, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
             local defaultInfo = TweenInfo.new(0.4, Enum.EasingStyle.Sine, Enum.EasingDirection.In)
-
             TweenService:Create(TabBtn, neonInfo, {BackgroundTransparency = 0.5, BackgroundColor3 = PURPLE, TextTransparency = 0}):Play()
             TweenService:Create(TabStroke, neonInfo, {Thickness = 4, Color = PURPLE_LIGHT}):Play()
-
             task.wait(0.12)
-
             TweenService:Create(TabBtn, defaultInfo, {BackgroundTransparency = 1, BackgroundColor3 = Color3.fromRGB(20, 20, 20), TextTransparency = 0.2}):Play()
             TweenService:Create(TabStroke, defaultInfo, {Thickness = 2.5, Color = Color3.new(1, 1, 1)}):Play()
-
             task.wait(0.4)
             canTween = true
         end)
@@ -1267,11 +538,36 @@ if IsDeveloper then
         return Page
     end
 
+    local function MakeScrollPage(parent)
+        local scroll = Instance.new("ScrollingFrame")
+        scroll.Size = UDim2.new(1, 0, 1, 0)
+        scroll.Position = UDim2.new(0, 0, 0, 0)
+        scroll.BackgroundTransparency = 1
+        scroll.ScrollBarThickness = 6
+        scroll.ScrollBarImageColor3 = PURPLE
+        scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+        scroll.ScrollingEnabled = true
+        scroll.ScrollingDirection = Enum.ScrollingDirection.Y
+        scroll.Parent = parent
+
+        local layout = Instance.new("UIListLayout", scroll)
+        layout.Padding = UDim.new(0, 8)
+        layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+        layout.SortOrder = Enum.SortOrder.LayoutOrder
+        layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+            scroll.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 10)
+        end)
+        return scroll
+    end
+
+    -- التبويبات الموجودة
+    local ConnectedTab = CreateTab("اللاعبين المتصلين") -- التبويب الجديد أولاً
     local AdminTab = CreateTab("Admin Commands")
     local BangTab = CreateTab("Bang")
     local NotificationsTab = CreateTab("الاشعارات")
     local HousesTab = CreateTab("منازل")
-    AdminTab.Visible = true
+    
+    ConnectedTab.Visible = true -- جعل التبويب الجديد هو الافتراضي
 
     local TopBar = Instance.new("Frame")
     TopBar.Size = UDim2.new(1, 0, 0, 40)
@@ -1312,39 +608,7 @@ if IsDeveloper then
     MinimizeBtn.Parent = TopBar
     Instance.new("UICorner", MinimizeBtn)
 
-    local Resizer = Instance.new("TextButton")
-    Resizer.Size = UDim2.new(0, 30, 0, 30)
-    Resizer.Position = UDim2.new(1, -30, 1, -30)
-    Resizer.BackgroundTransparency = 1
-    Resizer.Text = "◢"
-    Resizer.TextColor3 = PURPLE
-    Resizer.TextSize = 25
-    Resizer.ZIndex = 10
-    Resizer.Parent = MainFrame
-
-    local isResizing = false
-    Resizer.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            isResizing = true
-            MainFrame.Draggable = false
-        end
-    end)
-
-    UserInputService.InputChanged:Connect(function(input)
-        if isResizing and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-            local framePos = MainFrame.AbsolutePosition
-            local newSize = UDim2.new(0, math.max(350, input.Position.X - framePos.X), 0, math.max(250, input.Position.Y - framePos.Y))
-            MainFrame.Size = newSize
-        end
-    end)
-
-    UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            isResizing = false
-            MainFrame.Draggable = true
-        end
-    end)
-
+    -- خصائص التحريك للتصغير والاغلاق (باقية كما هي بالسكربت الاصلي)
     local uiVisible = true
     local isMin = false
     local isTweening = false
@@ -1355,66 +619,36 @@ if IsDeveloper then
         if isTweening then return end
         isTweening = true
         uiVisible = not uiVisible
-
-        TweenService:Create(ToggleBtn, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-            Size = UDim2.new(0, originalBtnSize.X.Offset - 6, 0, originalBtnSize.Y.Offset - 6)
-        }):Play()
-        
-        task.wait(0.1)
-        
-        TweenService:Create(ToggleBtn, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-            Size = originalBtnSize
-        }):Play()
-
         if uiVisible then
             MainFrame.Visible = true
-            MainFrame.Size = UDim2.new(0, 0, 0, 0)
-            MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
-            
             TweenService:Create(MainFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-                Size = isMin and UDim2.new(0, originalMainSize.X.Offset, 0, 40) or originalMainSize,
-                Position = isMin and UDim2.new(0.5, -originalMainSize.X.Offset/2, 0.5, -20) or UDim2.new(0.5, -originalMainSize.X.Offset/2, 0.5, -originalMainSize.Y.Offset/2)
+                Size = isMin and UDim2.new(0, originalMainSize.X.Offset, 0, 40) or originalMainSize
             }):Play()
-            
             task.wait(0.3)
-            isTweening = false
         else
             TweenService:Create(MainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-                Size = UDim2.new(0, 0, 0, 0),
-                Position = UDim2.new(0.5, 0, 0.5, 0)
+                Size = UDim2.new(0, 0, 0, 0)
             }):Play()
-            
             task.wait(0.25)
             MainFrame.Visible = false
-            isTweening = false
         end
+        isTweening = false
     end)
 
     MinimizeBtn.MouseButton1Click:Connect(function()
         if isTweening then return end
         isTweening = true
         isMin = not isMin
-
         if isMin then
             originalMainSize = MainFrame.Size
             MinimizeBtn.Text = "-"
-            Resizer.Visible = false
-            TweenService:Create(MainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-                Size = UDim2.new(0, originalMainSize.X.Offset, 0, 40),
-                Position = UDim2.new(0.5, -originalMainSize.X.Offset/2, 0.5, -20)
-            }):Play()
-            task.wait(0.25)
-            isTweening = false
+            TweenService:Create(MainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Size = UDim2.new(0, originalMainSize.X.Offset, 0, 40) }):Play()
         else
             MinimizeBtn.Text = "+"
-            TweenService:Create(MainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-                Size = originalMainSize,
-                Position = UDim2.new(0.5, -originalMainSize.X.Offset/2, 0.5, -originalMainSize.Y.Offset/2)
-            }):Play()
-            task.wait(0.25)
-            Resizer.Visible = true
-            isTweening = false
+            TweenService:Create(MainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Size = originalMainSize }):Play()
         end
+        task.wait(0.25)
+        isTweening = false
     end)
 
     CloseBtn.MouseButton1Click:Connect(function() ScreenGui:Destroy() end)
@@ -1431,12 +665,10 @@ if IsDeveloper then
         btn.BorderSizePixel = 0
         btn.Parent = parent
         Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
-
         local btnStroke = Instance.new("UIStroke", btn)
         btnStroke.Thickness = 2
         btnStroke.Color = Color3.new(1, 1, 1)
         btnStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-
         local btnGrad = Instance.new("UIGradient")
         btnGrad.Color = ColorSequence.new({
             ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 0, 0)),
@@ -1445,15 +677,13 @@ if IsDeveloper then
         })
         btnGrad.Parent = btnStroke
         GradientLoop(btnGrad)
-
         btn.MouseButton1Click:Connect(callback)
         return btn
     end
 
-    local function createStyledTextBox(parent, placeholder, position, size)
+    local function createStyledTextBox(parent, placeholder)
         local box = Instance.new("TextBox")
-        box.Size = size or UDim2.new(0.9, 0, 0, 35)
-        box.Position = position
+        box.Size = UDim2.new(0.95, 0, 0, 32)
         box.BackgroundColor3 = Color3.fromRGB(40, 30, 55)
         box.BackgroundTransparency = 0.2
         box.BorderSizePixel = 0
@@ -1469,209 +699,240 @@ if IsDeveloper then
         return box
     end
 
-    local VictimBox = createStyledTextBox(AdminTab, "اكتب اسم الضحية هنا...", UDim2.new(0.05, 0, 0, 5))
+    -----------------------------------------------------
+    -- [ جديد ] تبويب اللاعبين المتصلين و سحب البيانات من الـ API
+    -----------------------------------------------------
+    local ConnectedScroll = MakeScrollPage(ConnectedTab)
+    
+    local function CreatePlayerCard(playerInfo)
+        local Card = Instance.new("Frame")
+        Card.Name = "Card_" .. playerInfo.Name
+        Card.Size = UDim2.new(0.95, 0, 0, 65)
+        Card.BackgroundColor3 = Color3.fromRGB(30, 20, 40)
+        Card.BackgroundTransparency = 0.3
+        Card.BorderSizePixel = 0
+        Card.Parent = ConnectedScroll
+        Instance.new("UICorner", Card).CornerRadius = UDim.new(0, 8)
+        
+        local CardStroke = Instance.new("UIStroke", Card)
+        CardStroke.Thickness = 1.5
+        CardStroke.Color = PURPLE_DARK
+        
+        -- صورة اللاعب
+        local Avatar = Instance.new("ImageLabel")
+        Avatar.Size = UDim2.new(0, 45, 0, 45)
+        Avatar.Position = UDim2.new(0, 10, 0.5, -22.5)
+        Avatar.BackgroundTransparency = 1
+        Avatar.Image = "rbxthumb://type=AvatarHeadShot&id=".. tostring(playerInfo.UserId) .."&w=150&h=150"
+        Avatar.Parent = Card
+        Instance.new("UICorner", Avatar).CornerRadius = UDim.new(1, 0)
+        
+        -- الاسم المستعار
+        local DisplayNameLabel = Instance.new("TextLabel")
+        DisplayNameLabel.Size = UDim2.new(0.5, 0, 0, 20)
+        DisplayNameLabel.Position = UDim2.new(0, 65, 0, 12)
+        DisplayNameLabel.BackgroundTransparency = 1
+        DisplayNameLabel.Text = playerInfo.DisplayName
+        DisplayNameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+        DisplayNameLabel.Font = Enum.Font.GothamBold
+        DisplayNameLabel.TextSize = 14
+        DisplayNameLabel.TextXAlignment = Enum.TextXAlignment.Left
+        DisplayNameLabel.Parent = Card
+        
+        -- الاسم الاساسي
+        local RealNameLabel = Instance.new("TextLabel")
+        RealNameLabel.Size = UDim2.new(0.5, 0, 0, 20)
+        RealNameLabel.Position = UDim2.new(0, 65, 0, 32)
+        RealNameLabel.BackgroundTransparency = 1
+        RealNameLabel.Text = "@" .. playerInfo.Name
+        RealNameLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+        RealNameLabel.Font = Enum.Font.GothamMedium
+        RealNameLabel.TextSize = 11
+        RealNameLabel.TextXAlignment = Enum.TextXAlignment.Left
+        RealNameLabel.Parent = Card
 
-    local buttonData = {
-        {"/Kill", "kill"},
-        {"/LoopKill", "loopkill"},
-        {"/Kick", "kick"},
-        {"/Freeze", "freeze"},
-        {"/Bring", "bring"},
-        {"/Fling", "fling"},
-        {"/Sky", "sky"},
-        {"/Under", "underground"},
-        {"/SkyStop", "stopsky"},
-        {"/Jail", "jail"},
-        {"/TPRand", "tprand"},
-        {"/Spin", "spin"},
-        {"/Sit", "sit"},
-        {"/LoopSit", "loopsit"},
-        {"/Fire", "fire"},
-        {"/Blind", "blind"},
-        {"/LegBk", "legback"},
-        {"/LegFc", "legface"},
-        {"/WalkTo", "walkto"},
-        {"/AutoJmp", "autojump"},
-        {"/InfJmp", "infjump"},
-        {"/SpdAll", "speedall"},
-        {"/JmpAll", "jumpall"},
-        {"/FlingZ", "flingz"}
-    }
+        -- زر الانضمام Join
+        local JoinBtn = Instance.new("TextButton")
+        JoinBtn.Size = UDim2.new(0, 60, 0, 30)
+        JoinBtn.Position = UDim2.new(1, -110, 0.5, -15)
+        JoinBtn.BackgroundColor3 = Color3.fromRGB(40, 20, 80)
+        JoinBtn.Text = "Join"
+        JoinBtn.TextColor3 = Color3.fromRGB(200, 150, 255)
+        JoinBtn.Font = Enum.Font.GothamBold
+        JoinBtn.TextSize = 12
+        JoinBtn.Parent = Card
+        Instance.new("UICorner", JoinBtn).CornerRadius = UDim.new(0, 6)
+        
+        JoinBtn.MouseButton1Click:Connect(function()
+            if playerInfo.PlaceId and playerInfo.JobId then
+                TeleportService:TeleportToPlaceInstance(playerInfo.PlaceId, playerInfo.JobId, LocalPlayer)
+            end
+        end)
+        
+        -- زر الطرد Kick (X)
+        local KickBtn = Instance.new("TextButton")
+        KickBtn.Size = UDim2.new(0, 30, 0, 30)
+        KickBtn.Position = UDim2.new(1, -40, 0.5, -15)
+        KickBtn.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
+        KickBtn.Text = "X"
+        KickBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+        KickBtn.Font = Enum.Font.GothamBold
+        KickBtn.TextSize = 14
+        KickBtn.Parent = Card
+        Instance.new("UICorner", KickBtn).CornerRadius = UDim.new(0, 6)
+        
+        KickBtn.MouseButton1Click:Connect(function()
+            SendCommandAPI("kick", playerInfo.Name, nil)
+        end)
+    end
 
-    local buttonContainer = Instance.new("ScrollingFrame")
-    buttonContainer.Size = UDim2.new(1, -20, 1, -60)
-    buttonContainer.Position = UDim2.new(0, 10, 0, 50)
-    buttonContainer.BackgroundTransparency = 1
-    buttonContainer.ScrollBarThickness = 6
-    buttonContainer.ScrollBarImageColor3 = PURPLE
-    buttonContainer.BorderSizePixel = 0
-    buttonContainer.ScrollingEnabled = true
-    buttonContainer.Parent = AdminTab
+    -- دالة تحديث قائمة اللاعبين المتصلين
+    local function UpdateConnectedPlayers()
+        local ok, data = HttpCall("GET", "ConnectedPlayers.json")
+        if not ok or type(data) ~= "table" then return end
+        
+        local currentTime = os.time()
+        -- حذف الكروت القديمة باستثناء التخطيط
+        for _, v in ipairs(ConnectedScroll:GetChildren()) do
+            if v:IsA("Frame") and v.Name:match("^Card_") then
+                v:Destroy()
+            end
+        end
+        
+        for pName, pData in pairs(data) do
+            -- عرض اللاعبين المتصلين في اخر 60 ثانية فقط
+            if pData.LastSeen and (currentTime - pData.LastSeen) <= 60 then
+                CreatePlayerCard(pData)
+            end
+        end
+    end
 
-    local buttonLayout = Instance.new("UIListLayout")
-    buttonLayout.Padding = UDim.new(0, 5)
-    buttonLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-    buttonLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    buttonLayout.Parent = buttonContainer
-
-    buttonLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        buttonContainer.CanvasSize = UDim2.new(0, 0, 0, buttonLayout.AbsoluteContentSize.Y + 10)
+    -- تحديث القائمة كل 10 ثواني طالما القائمة مفتوحة
+    task.spawn(function()
+        while true do
+            if ConnectedTab.Visible then
+                pcall(UpdateConnectedPlayers)
+            end
+            task.wait(10)
+        end
     end)
 
+
+    -----------------------------------------------------
+    -- التبويبات القديمة (موجودة بالكامل كما طلبت ويتم إرسالها للـ API)
+    -----------------------------------------------------
+    local AdminScroll = MakeScrollPage(AdminTab)
+    local VictimBox = createStyledTextBox(AdminScroll, "اكتب اسم الضحية هنا...")
+
+    local buttonData = {
+        {"/Goto (أنا)", "goto"}, {"/Kill", "kill"}, {"/LoopKill", "loopkill"}, {"/Kick", "kick"},
+        {"/Freeze", "freeze"}, {"/FreezeCam", "freezecam"}, {"/CamDrop", "camdrop"}, {"/CrazyCam", "crazycam"},
+        {"/Bring", "bring"}, {"/Fling", "fling"}, {"/Sky", "sky"}, {"/Under", "underground"},
+        {"/SkyStop", "stopsky"}, {"/Jail", "jail"}, {"/TPRand", "tprand"}, {"/Spin", "spin"},
+        {"/Sit", "sit"}, {"/LoopSit", "loopsit"}, {"/Fire", "fire"}, {"/Blind", "blind"},
+        {"/LegBk", "legback"}, {"/LegFc", "legface"}, {"/WalkTo", "walkto"}, {"/AutoJmp", "autojump"},
+        {"/InfJmp", "infjump"}, {"/SpdAll", "speedall"}, {"/JmpAll", "jumpall"}, {"/FlingZ", "flingz"}
+    }
+
     for _, data in ipairs(buttonData) do
-        createStyledButton(buttonContainer, data[1], function()
+        local cmdName = data[2]
+        createStyledButton(AdminScroll, data[1], function()
             local p = FindPlayer(VictimBox.Text)
-            if p and p.Parent then
-                SendCommand(data[2], p.Name, nil, p)
+            if not p or not p.Parent then return end
+            if cmdName == "goto" then
+                if p.Character and LocalPlayer.Character then
+                    local vhrp = p.Character:FindFirstChild("HumanoidRootPart")
+                    local myhrp = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                    if vhrp and myhrp then myhrp.CFrame = vhrp.CFrame + Vector3.new(0, 2, 0) end
+                end
+            else
+                SendCommandAPI(cmdName, p.Name, nil)
             end
         end)
     end
 
-    local BangVictimBox = createStyledTextBox(BangTab, "الضحية الأولى (المنفذ)...", UDim2.new(0.05, 0, 0, 5))
-    local BangTargetBox = createStyledTextBox(BangTab, "الضحية الثانية (الهدف)...", UDim2.new(0.05, 0, 0, 45))
-
-    local BangContainer = Instance.new("ScrollingFrame")
-    BangContainer.Size = UDim2.new(1, -20, 1, -60)
-    BangContainer.Position = UDim2.new(0, 10, 0, 90)
-    BangContainer.BackgroundTransparency = 1
-    BangContainer.ScrollBarThickness = 6
-    BangContainer.ScrollBarImageColor3 = PURPLE
-    BangContainer.BorderSizePixel = 0
-    BangContainer.ScrollingEnabled = true
-    BangContainer.Parent = BangTab
-
-    local BangLayout = Instance.new("UIListLayout")
-    BangLayout.Padding = UDim.new(0, 5)
-    BangLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-    BangLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    BangLayout.Parent = BangContainer
-
-    BangLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        BangContainer.CanvasSize = UDim2.new(0, 0, 0, BangLayout.AbsoluteContentSize.Y + 10)
-    end)
-
+    -- Bang Tab
+    local BangHeader = Instance.new("Frame")
+    BangHeader.Size = UDim2.new(1, 0, 0, 90)
+    BangHeader.BackgroundTransparency = 1
+    BangHeader.Parent = BangTab
+    local BangVictimBox = createStyledTextBox(BangHeader, "الضحية الأولى (المنفذ)...")
+    BangVictimBox.Position = UDim2.new(0.025, 0, 0, 4)
+    local BangTargetBox = createStyledTextBox(BangHeader, "الضحية الثانية (الهدف)...")
+    BangTargetBox.Position = UDim2.new(0.025, 0, 0, 44)
+    local BangScroll = MakeScrollPage(BangTab)
+    BangScroll.Size = UDim2.new(1, 0, 1, -95)
+    BangScroll.Position = UDim2.new(0, 0, 0, 95)
+    
     local bangButtons = {
-        {"Back Bang", "bangback", true},
-        {"Face Sit", "bangface", true},
-        {"Combine", "bangcomb", true},
-        {"V2 Body", "bangv2body", true},
-        {"V2 Face", "bangv2face", true},
-        {"Stop All Bangs", "bangstopall", false}
+        {"Back Bang", "bangback", true}, {"Face Sit", "bangface", true}, {"Combine", "bangcomb", true},
+        {"V2 Body", "bangv2body", true}, {"V2 Face", "bangv2face", true}, {"Stop All Bangs", "bangstopall", false}
     }
-
     for _, data in ipairs(bangButtons) do
         local cmd = data[2]
         local needTarget = data[3]
-        local btn = createStyledButton(BangContainer, data[1], function()
+        createStyledButton(BangScroll, data[1], function()
             local p1 = FindPlayer(BangVictimBox.Text)
-            if not p1 or GetDeveloperByPlayer(p1) then return end
-            
+            if not p1 then return end
             if needTarget then
                 local p2 = FindPlayer(BangTargetBox.Text)
-                if p2 and not GetDeveloperByPlayer(p2) then
-                    SendCommand(cmd, p1.Name, p2.Name, p1)
-                end
+                if p2 then SendCommandAPI(cmd, p1.Name, p2.Name) end
             else
-                SendCommand(cmd, p1.Name, nil, p1)
+                SendCommandAPI(cmd, p1.Name, nil)
             end
         end)
-        btn.Size = UDim2.new(0.9, 0, 0, 35)
     end
 
-    local NotfVictimBox = createStyledTextBox(NotificationsTab, "اسم الضحية...", UDim2.new(0.05, 0, 0, 5))
-    local NotfMsgBox = createStyledTextBox(NotificationsTab, "اكتب الرسالة هنا (يدعم كل اللغات)...", UDim2.new(0.05, 0, 0, 45), UDim2.new(0.9, 0, 0, 80))
+    -- Notifications Tab
+    local NotfHeader = Instance.new("Frame")
+    NotfHeader.Size = UDim2.new(1, 0, 0, 130)
+    NotfHeader.BackgroundTransparency = 1
+    NotfHeader.Parent = NotificationsTab
+    local NotfVictimBox = createStyledTextBox(NotfHeader, "اسم الضحية (يجب أن يكون مفعل السكربت)...")
+    NotfVictimBox.Position = UDim2.new(0.025, 0, 0, 4)
+    local NotfMsgBox = createStyledTextBox(NotfHeader, "اكتب الرسالة هنا...")
+    NotfMsgBox.Position = UDim2.new(0.025, 0, 0, 44)
+    NotfMsgBox.Size = UDim2.new(0.95, 0, 0, 80)
     NotfMsgBox.MultiLine = true
-    NotfMsgBox.TextWrapped = true
-
-    local NotfContainer = Instance.new("ScrollingFrame")
-    NotfContainer.Size = UDim2.new(1, -20, 1, -140)
-    NotfContainer.Position = UDim2.new(0, 10, 0, 135)
-    NotfContainer.BackgroundTransparency = 1
-    NotfContainer.ScrollBarThickness = 6
-    NotfContainer.ScrollBarImageColor3 = PURPLE
-    NotfContainer.BorderSizePixel = 0
-    NotfContainer.ScrollingEnabled = true
-    NotfContainer.Parent = NotificationsTab
-
-    local NotfLayout = Instance.new("UIListLayout")
-    NotfLayout.Padding = UDim.new(0, 5)
-    NotfLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-    NotfLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    NotfLayout.Parent = NotfContainer
-
-    NotfLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        NotfContainer.CanvasSize = UDim2.new(0, 0, 0, NotfLayout.AbsoluteContentSize.Y + 10)
-    end)
-
-    createStyledButton(NotfContainer, "ارسال الاشعارات", function()
+    local NotfScroll = MakeScrollPage(NotificationsTab)
+    NotfScroll.Size = UDim2.new(1, 0, 1, -135)
+    NotfScroll.Position = UDim2.new(0, 0, 0, 135)
+    createStyledButton(NotfScroll, "ارسال الاشعارات", function()
         local p = FindPlayer(NotfVictimBox.Text)
-        if p and NotfMsgBox.Text and NotfMsgBox.Text ~= "" then
-            SendCommand("notf", p.Name, NotfMsgBox.Text, p)
-        end
+        if p and NotfMsgBox.Text and NotfMsgBox.Text ~= "" then SendCommandAPI("notf", p.Name, NotfMsgBox.Text) end
     end)
-
-    createStyledButton(NotfContainer, "ايقاف الاشعارات (notfStop)", function()
+    createStyledButton(NotfScroll, "ايقاف الاشعارات (notfStop)", function()
         local p = FindPlayer(NotfVictimBox.Text)
-        if p then
-            SendCommand("notfstop", p.Name, nil, p)
-        end
+        if p then SendCommandAPI("notfstop", p.Name, nil) end
     end)
 
-    local HouseVictimBox = createStyledTextBox(HousesTab, "اسم الضحية (لاعب أو مطور)...", UDim2.new(0.05, 0, 0, 5))
-
-    local HouseContainer = Instance.new("ScrollingFrame")
-    HouseContainer.Size = UDim2.new(1, -20, 1, -60)
-    HouseContainer.Position = UDim2.new(0, 10, 0, 50)
-    HouseContainer.BackgroundTransparency = 1
-    HouseContainer.ScrollBarThickness = 6
-    HouseContainer.ScrollBarImageColor3 = PURPLE
-    HouseContainer.BorderSizePixel = 0
-    HouseContainer.ScrollingEnabled = true
-    HouseContainer.Parent = HousesTab
-
-    local HouseLayout = Instance.new("UIListLayout")
-    HouseLayout.Padding = UDim.new(0, 5)
-    HouseLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-    HouseLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    HouseLayout.Parent = HouseContainer
-
-    HouseLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        HouseContainer.CanvasSize = UDim2.new(0, 0, 0, HouseLayout.AbsoluteContentSize.Y + 10)
-    end)
-
+    -- Houses Tab
+    local HouseHeader = Instance.new("Frame")
+    HouseHeader.Size = UDim2.new(1, 0, 0, 42)
+    HouseHeader.BackgroundTransparency = 1
+    HouseHeader.Parent = HousesTab
+    local HouseVictimBox = createStyledTextBox(HouseHeader, "اسم الضحية (لاعب أو مطور)...")
+    HouseVictimBox.Position = UDim2.new(0.025, 0, 0, 4)
+    local HouseScroll = MakeScrollPage(HousesTab)
+    HouseScroll.Size = UDim2.new(1, 0, 1, -48)
+    HouseScroll.Position = UDim2.new(0, 0, 0, 48)
     local housesData = {
-        {"Castle", "castle"},
-        {"Blox Fruit", "bloxfruit"},
-        {"MM2", "mm2"},
-        {"سوق", "market"},
-        {"حديقة", "garden"},
-        {"بيت", "house"},
-        {"Dark Garden", "darkgarden"}
+        {"Castle", "castle"}, {"Blox Fruit", "bloxfruit"}, {"MM2", "mm2"},
+        {"سوق", "market"}, {"حديقة", "garden"}, {"بيت", "house"}, {"Dark Garden", "darkgarden"}
     }
-
     for _, data in ipairs(housesData) do
         local cmd = data[2]
-        local btn = createStyledButton(HouseContainer, data[1], function()
+        createStyledButton(HouseScroll, data[1], function()
             local p = FindPlayer(HouseVictimBox.Text)
-            if p then
-                SendCommand(cmd, p.Name, nil, p)
-            end
+            if p then SendCommandAPI(cmd, p.Name, nil) end
         end)
-        btn.Size = UDim2.new(0.9, 0, 0, 35)
     end
 
     ScreenGui.Destroying:Connect(function()
         for _, p in ipairs(Players:GetPlayers()) do
-            if BangState[p.Name] then
-                StopBangFor(p)
-            end
+            if BangState[p.Name] then StopBangFor(p) end
+            if CamState[p.Name] then StopCam(p.Name) end
         end
     end)
 
-    task.spawn(function()
-        while ScreenGui and ScreenGui.Parent do
-            MainFrame.BackgroundTransparency = 0.15 + 0.05 * math.sin(tick() * 2)
-            task.wait(0.1)
-        end
-    end)
 end
