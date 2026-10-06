@@ -1,0 +1,220 @@
+-- سكربت القاب عمك زينكس حبيبي
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local TagSubTitle = "Zenix X Joker"
+
+local RankData = {
+    Developers = {
+        ["Go2mohamed"] = true,
+        ["Go2yousef"] = true,
+        ["joo77xb"] = true,
+        ["adam_saadi8737"] = true,
+        ["DARK_LOP3"] = true,
+        ["m7mad9113"] = true,
+    },
+    Admins = {
+        ["youssef3423samyt"] = true,
+        ["saraaaal279"] = true,
+        ["ANFNTI_999"] = true,
+    },
+    Special = {},
+    ImportantMembers = {
+        ["Rohim38206"] = true,
+        ["im_rawab"] = true,
+        ["rohim38206"] = true,
+        ["srufguyifi"] = true,
+        ["FLM176"] = true,
+        ["Levi_onXtop"] = true,
+    }
+}
+
+local RecognizedPlayers = {}
+
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "NotificationGui"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+local currentNotification = nil
+
+local function ShowNotification(titleText, bodyText)
+    if currentNotification then
+        currentNotification:Destroy()
+    end
+
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(0, 300, 0, 100)
+    frame.Position = UDim2.new(1, -20, 1, -20)
+    frame.AnchorPoint = Vector2.new(1, 1)
+    frame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    frame.BackgroundTransparency = 0
+    frame.BorderSizePixel = 0
+    frame.Parent = ScreenGui
+
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 15)
+    corner.Parent = frame
+
+    local stroke = Instance.new("UIStroke")
+    stroke.Thickness = 2
+    stroke.Color = Color3.fromRGB(170, 0, 255)
+    stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    stroke.Parent = frame
+
+    local titleLabel = Instance.new("TextLabel")
+    titleLabel.Size = UDim2.new(1, 0, 0.4, 0)
+    titleLabel.Position = UDim2.new(0, 0, 0.05, 0)
+    titleLabel.BackgroundTransparency = 1
+    titleLabel.Text = titleText
+    titleLabel.TextColor3 = Color3.fromRGB(170, 0, 255)
+    titleLabel.Font = Enum.Font.GothamBold
+    titleLabel.TextScaled = true
+    titleLabel.Parent = frame
+
+    local bodyLabel = Instance.new("TextLabel")
+    bodyLabel.Size = UDim2.new(0.9, 0, 0.4, 0)
+    bodyLabel.Position = UDim2.new(0.05, 0, 0.5, 0)
+    bodyLabel.BackgroundTransparency = 1
+    bodyLabel.Text = bodyText
+    bodyLabel.TextColor3 = Color3.fromRGB(170, 0, 255)
+    bodyLabel.Font = Enum.Font.GothamBold
+    bodyLabel.TextScaled = true
+    bodyLabel.TextWrapped = true
+    bodyLabel.Parent = frame
+
+    currentNotification = frame
+
+    task.delay(10, function()
+        if frame and frame.Parent then
+            frame:Destroy()
+            if currentNotification == frame then
+                currentNotification = nil
+            end
+        end
+    end)
+end
+
+local function GetRankType(name)
+    if RankData.Developers[name] then
+        return "Developer"
+    elseif RankData.Admins[name] then
+        return "Admin"
+    elseif RankData.Special[name] then
+        return "Special"
+    end
+    return nil
+end
+
+local function CheckEligibility(Player)
+    local Name = Player.Name
+    if RankData.Developers[Name] then
+        if Name == "joo77xb" or Name == "adam_saadi8737" then
+            RecognizedPlayers[Player] = {Title = "المطور joo #1", Color = Color3.fromRGB(255, 0, 0)}
+        else
+            RecognizedPlayers[Player] = {Title = "المطور Zenix #1", Color = Color3.fromRGB(255, 0, 0)}
+        end
+    elseif RankData.Admins[Name] then
+        RecognizedPlayers[Player] = {Title = "ادمن", Color = Color3.fromRGB(255, 215, 0)}
+    elseif RankData.Special[Name] then
+        RecognizedPlayers[Player] = {Title = "اخوي الغالي", Color = Color3.fromRGB(255, 0, 0)}
+    elseif RankData.ImportantMembers[Name] then
+        RecognizedPlayers[Player] = {Title = "عضو مهم", Color = Color3.fromRGB(0, 200, 255)}
+    end
+end
+
+local function ApplyRank(Player, Character)
+    local Data = RecognizedPlayers[Player]
+    if not Data then return end
+
+    local Head = Character:WaitForChild("Head", 5)
+    if not Head then return end
+
+    if Character:FindFirstChild("RoyalTag") then return end
+
+    local Billboard = Instance.new("BillboardGui")
+    Billboard.Name = "RoyalTag"
+    Billboard.Adornee = Head
+    Billboard.Parent = Character
+    Billboard.Size = UDim2.new(6, 0, 2.5, 0)
+    Billboard.StudsOffset = Vector3.new(0, 4, 0)
+    Billboard.AlwaysOnTop = true
+
+    local Frame = Instance.new("Frame", Billboard)
+    Frame.Size = UDim2.new(1, 0, 1, 0)
+    Frame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+    Frame.BackgroundTransparency = 0.2
+    Frame.BorderSizePixel = 0
+    Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 12)
+
+    local Stroke = Instance.new("UIStroke", Frame)
+    Stroke.Thickness = 3
+    Stroke.Color = Data.Color
+    Stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+
+    local Gradient = Instance.new("UIGradient", Frame)
+    Gradient.Color = ColorSequence.new({
+        ColorSequenceKeypoint.new(0, Color3.fromRGB(30, 30, 30)),
+        ColorSequenceKeypoint.new(0.5, Data.Color),
+        ColorSequenceKeypoint.new(1, Color3.fromRGB(30, 30, 30))
+    })
+
+    local TitleLabel = Instance.new("TextLabel", Frame)
+    TitleLabel.Size = UDim2.new(1, 0, 0.45, 0)
+    TitleLabel.Position = UDim2.new(0, 0, 0.1, 0)
+    TitleLabel.BackgroundTransparency = 1
+    TitleLabel.Text = "✿ " .. Data.Title .. " ✿"
+    TitleLabel.TextColor3 = Data.Color
+    TitleLabel.Font = Enum.Font.GothamBold
+    TitleLabel.TextScaled = true
+
+    local SubLabel = Instance.new("TextLabel", Frame)
+    SubLabel.Size = UDim2.new(0.9, 0, 0.3, 0)
+    SubLabel.Position = UDim2.new(0.05, 0, 0.55, 0)
+    SubLabel.BackgroundTransparency = 1
+    SubLabel.Text = TagSubTitle
+    SubLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    SubLabel.Font = Enum.Font.GothamBold
+    SubLabel.TextScaled = true
+end
+
+local function SetupPlayer(Player)
+    CheckEligibility(Player)
+
+    if Player ~= LocalPlayer then
+        local rankType = GetRankType(Player.Name)
+        if rankType then
+            local bodyText = ""
+            if rankType == "Developer" then
+                bodyText = "احد المطورين موجود في السرفر!!"
+            elseif rankType == "Admin" then
+                bodyText = "احد الادمنز موجود في السرفر!!"
+            elseif rankType == "Special" then
+                bodyText = "احد اخوياي المطورين في السرفر!!"
+            end
+            ShowNotification("تنبيه!!", bodyText)
+        end
+    end
+
+    if RecognizedPlayers[Player] then
+        Player.CharacterAdded:Connect(function(Character)
+            task.wait(0.1)
+            ApplyRank(Player, Character)
+        end)
+
+        if Player.Character then
+            ApplyRank(Player, Player.Character)
+        end
+    end
+end
+
+for _, Player in ipairs(Players:GetPlayers()) do
+    SetupPlayer(Player)
+end
+
+Players.PlayerAdded:Connect(SetupPlayer)
+
+Players.PlayerRemoving:Connect(function(Player)
+    if RecognizedPlayers[Player] then
+        RecognizedPlayers[Player] = nil
+    end
+end)
