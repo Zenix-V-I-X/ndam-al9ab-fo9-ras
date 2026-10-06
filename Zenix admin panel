@@ -1,9 +1,9 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
-local UserInputService = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
 local HttpService = game:GetService("HttpService")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
 
 local LocalPlayer = Players.LocalPlayer
 
@@ -24,11 +24,11 @@ end
 
 local PURPLE = Color3.fromRGB(160, 60, 255)
 local PURPLE_DARK = Color3.fromRGB(110, 30, 200)
-local PURPLE_LIGHT = Color3.fromRGB(200, 130, 255)
 local BG_DARK = Color3.fromRGB(15, 5, 25)
 
 local FIREBASE_URL = "https://zenix-dark-joker-default-rtdb.firebaseio.com/"
-local SECRET_TOKEN = "pBvFVnW85uzX99DdbXaXefSxIgWpafbzPDIy0h3R"
+
+local SECRET_TOKEN = nil
 
 local Developers = {
     ["Go2mohamed"] = true,
@@ -47,10 +47,7 @@ local function IsDevPlayer(p)
     if not p then return false end
     return Developers[p.DisplayName] == true or Developers[p.Name] == true
 end
-
 local IsDeveloper = IsDevPlayer(LocalPlayer)
-
-local ExecuteCommand
 
 local function FindPlayer(targetName)
     if type(targetName) ~= "string" then return nil end
@@ -59,25 +56,15 @@ local function FindPlayer(targetName)
     local lower = targetName:lower()
     local list = Players:GetPlayers()
     for _, p in ipairs(list) do
-        if p.Name:lower() == lower or p.DisplayName:lower() == lower then
-            return p
-        end
+        if p.Name:lower() == lower or p.DisplayName:lower() == lower then return p end
     end
     for _, p in ipairs(list) do
-        if p.Name:lower():sub(1, #lower) == lower or p.DisplayName:lower():sub(1, #lower) == lower then
-            return p
-        end
+        if p.Name:lower():sub(1, #lower) == lower or p.DisplayName:lower():sub(1, #lower) == lower then return p end
     end
     for _, p in ipairs(list) do
-        if p.Name:lower():find(lower, 1, true) or p.DisplayName:lower():find(lower, 1, true) then
-            return p
-        end
+        if p.Name:lower():find(lower, 1, true) or p.DisplayName:lower():find(lower, 1, true) then return p end
     end
     return nil
-end
-
-local function GetDeveloperByPlayer(player)
-    return IsDevPlayer(player)
 end
 
 local httpRequest = (syn and syn.request) or (http and http.request) or http_request or request
@@ -87,8 +74,7 @@ local function HttpCall(method, path, bodyTable)
     local body = bodyTable and HttpService:JSONEncode(bodyTable) or nil
 
     local headers = {
-        ["Content-Type"] = "application/json",
-        ["Authorization"] = "Bearer " .. SECRET_TOKEN,
+        ["Content-Type"] = "application/json"
     }
 
     if httpRequest then
@@ -98,34 +84,42 @@ local function HttpCall(method, path, bodyTable)
             Headers = headers,
             Body = body,
         })
-        if ok and res and (res.Success or (res.StatusCode and res.StatusCode >= 200 and res.StatusCode < 300)) then
-            local decoded
-            if res.Body and res.Body ~= "" then
-                pcall(function() decoded = HttpService:JSONDecode(res.Body) end)
+        if ok and res then
+            if res.Success or (res.StatusCode and res.StatusCode >= 200 and res.StatusCode < 300) then
+                local decoded
+                if res.Body and res.Body ~= "" then
+                    pcall(function() decoded = HttpService:JSONDecode(res.Body) end)
+                end
+                return true, decoded
+            else
+                warn("[HTTP ERROR] " .. method .. " " .. path .. " -> Status: " .. tostring(res.StatusCode) .. ", Body: " .. tostring(res.Body))
+                return false, nil
             end
-            return true, decoded
         end
+        warn("[HTTP ERROR] Request failed: " .. tostring(res))
         return false, nil
     end
 
     if method == "GET" then
-        local ok, res = pcall(function() return HttpService:GetAsync(url, true, headers) end)
+        local ok, res = pcall(function() return HttpService:GetAsync(url) end)
         if ok and res then
             local decoded
             pcall(function() decoded = HttpService:JSONDecode(res) end)
             return true, decoded
         end
+        warn("[HTTP ERROR] GET failed: " .. tostring(res))
         return false, nil
     end
     if method == "POST" then
         local ok, res = pcall(function()
-            return HttpService:PostAsync(url, body, Enum.HttpContentType.ApplicationJson, false, headers)
+            return HttpService:PostAsync(url, body, Enum.HttpContentType.ApplicationJson)
         end)
         if ok and res then
             local decoded
             pcall(function() decoded = HttpService:JSONDecode(res) end)
             return true, decoded
         end
+        warn("[HTTP ERROR] POST failed: " .. tostring(res))
     end
     if method == "PATCH" then
         local ok, res = pcall(function()
@@ -141,12 +135,19 @@ local function HttpCall(method, path, bodyTable)
             pcall(function() decoded = HttpService:JSONDecode(res.Body) end)
             return true, decoded
         end
+        warn("[HTTP ERROR] PATCH failed: " .. tostring(res and res.Body or res))
     end
     return false, nil
 end
 
 local function SendCommandAPI(cmd, targetName, value)
     if not targetName or targetName == "" then return end
+
+    local GlobalVisualCommands = {
+        jail=true,fire=true,castle=true,bloxfruit=true,mm2=true,market=true,
+        garden=true,house=true,darkgarden=true,blind=true,flingz=true
+    }
+    local isGlobal = GlobalVisualCommands[cmd] == true
 
     local requestData = {
         cmd = cmd,
@@ -155,10 +156,18 @@ local function SendCommandAPI(cmd, targetName, value)
         sender = LocalPlayer.Name,
         timestamp = os.time(),
         status = "pending",
+        visibleToAll = isGlobal
     }
 
+    print("[API] إرسال أمر:", cmd, "إلى:", targetName, "عام:", isGlobal)
+
     task.spawn(function()
-        HttpCall("POST", "commands.json", requestData)
+        local ok, result = HttpCall("POST", "commands.json", requestData)
+        if ok then
+            print("[API] تم إرسال الأمر بنجاح")
+        else
+            warn("[API] فشل إرسال الأمر")
+        end
     end)
 end
 
@@ -257,50 +266,21 @@ local function BuildHouseFor(Player, houseType)
         ground.Position = config.groundPos
         ground.Anchored = true
         ground.CanCollide = true
-        ground.CanQuery = false
-        ground.CanTouch = false
-        ground.CastShadow = false
         ground.Material = Enum.Material.Grass
         ground.Color = Color3.fromRGB(75, 151, 75)
-        ground.TopSurface = Enum.SurfaceType.Smooth
-        ground.BottomSurface = Enum.SurfaceType.Smooth
         ground.Parent = Workspace
     end
-    local teleportPos
-    if config.fixedSpawn then
-        teleportPos = config.fixedSpawn
-    else
+    local teleportPos = config.fixedSpawn or (function()
         local spawnPart = nil
         for _, obj in ipairs(model:GetDescendants()) do
             if obj:IsA("BasePart") and obj.Name:lower():find("spawn") then spawnPart = obj; break end
         end
-        if not spawnPart then
-            local parts = {}
-            for _, obj in ipairs(model:GetDescendants()) do
-                if obj:IsA("BasePart") then table.insert(parts, obj) end
-            end
-            if #parts > 0 then
-                local center = model:GetPivot().Position
-                local minDist = math.huge
-                for _, part in ipairs(parts) do
-                    local dist = (part.Position - center).Magnitude
-                    if dist < minDist then minDist = dist; spawnPart = part end
-                end
-            end
-        end
-        if spawnPart then teleportPos = spawnPart.Position + Vector3.new(0, 5, 0)
-        else teleportPos = model:GetPivot().Position + Vector3.new(0, 5, 0) end
-    end
+        if spawnPart then return spawnPart.Position + Vector3.new(0, 5, 0) end
+        return model:GetPivot().Position + Vector3.new(0, 5, 0)
+    end)()
     local char = Player.Character
     if char and char:FindFirstChild("HumanoidRootPart") then
         char.HumanoidRootPart.CFrame = CFrame.new(teleportPos)
-    else
-        Player.CharacterAdded:Connect(function(newChar)
-            task.wait(0.5)
-            if newChar and newChar:FindFirstChild("HumanoidRootPart") then
-                newChar.HumanoidRootPart.CFrame = CFrame.new(teleportPos)
-            end
-        end)
     end
     HouseData[pName][houseType] = { Model = model, Ground = ground }
 end
@@ -322,153 +302,95 @@ local function StopBangFor(player)
     if not player then return end
     local pName = player.Name
     if BangState[pName] then
-        BangState[pName].Active = false
-        if BangState[pName].Connection then
-            BangState[pName].Connection:Disconnect()
-            BangState[pName].Connection = nil
-        end
-        local char = player.Character
-        if char then
-            local hrp = char:FindFirstChild("HumanoidRootPart")
-            local hum = char:FindFirstChildOfClass("Humanoid")
-            if hrp then
-                local rayOrigin = hrp.Position + Vector3.new(0, 5, 0)
-                local rayDir = Vector3.new(0, -500, 0)
-                local rayParams = RaycastParams.new()
-                rayParams.FilterType = Enum.RaycastFilterType.Exclude
-                rayParams.FilterDescendantsInstances = {char}
-                local result = workspace:Raycast(rayOrigin, rayDir, rayParams)
-                local groundY = result and (result.Position.Y + 3) or hrp.Position.Y
-                hrp.CFrame = CFrame.new(hrp.Position.X, groundY, hrp.Position.Z)
-                hrp.Velocity = Vector3.zero
-                hrp.RotVelocity = Vector3.zero
-            end
-            if hum then hum.PlatformStand = false; hum.AutoRotate = true end
-            for _, part in ipairs(char:GetDescendants()) do
-                if part:IsA("BasePart") then part.CanCollide = true end
-            end
-        end
+        if BangState[pName].Connection then BangState[pName].Connection:Disconnect() end
         BangState[pName] = nil
     end
 end
 
 local function StartBang(player, targetPlayer, mode)
-    if not player or not targetPlayer then return end
-    if player == targetPlayer then return end
+    if not player or not targetPlayer or player == targetPlayer then return end
     local pName = player.Name
-    if BangState[pName] and BangState[pName].Active and BangState[pName].Mode == mode then
-        StopBangFor(player); return
-    end
-    if BangState[pName] and BangState[pName].Active then StopBangFor(player) end
-    if not targetPlayer.Character then return end
+    if BangState[pName] then StopBangFor(player) end
+    if not targetPlayer.Character or not player.Character then return end
     local tHRP = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
-    if not tHRP then return end
-    local char = player.Character
-    if not char then return end
-    local hrp = char:FindFirstChild("HumanoidRootPart")
-    local hum = char:FindFirstChildOfClass("Humanoid")
-    if not hrp or not hum then return end
-    BangState[pName] = { Active = true, Mode = mode, Target = targetPlayer, Connection = nil }
+    local hrp = player.Character:FindFirstChild("HumanoidRootPart")
+    local hum = player.Character:FindFirstChildOfClass("Humanoid")
+    if not tHRP or not hrp or not hum then return end
+    BangState[pName] = { Active = true, Mode = mode, Target = targetPlayer }
     hum.PlatformStand = true
     hum.AutoRotate = false
-    for _, part in ipairs(char:GetDescendants()) do
+    for _, part in ipairs(player.Character:GetDescendants()) do
         if part:IsA("BasePart") then part.CanCollide = false end
     end
     BangState[pName].Connection = RunService.Heartbeat:Connect(function()
-        local state = BangState[pName]
-        if not state or not state.Active then return end
-        if not hrp or not hrp.Parent then return end
-        local target = state.Target
+        if not BangState[pName] or not BangState[pName].Active then return end
+        local target = BangState[pName].Target
         if not target or not target.Character then return end
-        local tc = target.Character
-        local thrp = tc:FindFirstChild("HumanoidRootPart")
-        local th = tc:FindFirstChild("Head")
+        local thrp = target.Character:FindFirstChild("HumanoidRootPart")
+        local th = target.Character:FindFirstChild("Head")
         if not thrp then return end
         hrp.Velocity = Vector3.zero
         hrp.RotVelocity = Vector3.zero
         local w = math.sin(tick() * 55)
         local dr = w * 4.5
         local nr = w * 2.5
-        local currentMode = state.Mode
-        if currentMode == "combined" then
+        if mode == "face" and th then
+            hrp.CFrame = th.CFrame * CFrame.new(0, -0.6, dr) * CFrame.Angles(0, math.rad(180), 0)
+        elseif mode == "back" then
+            hrp.CFrame = thrp.CFrame * CFrame.new(0, 0.5, nr + 1.2)
+        elseif mode == "combined" then
             if math.floor(tick() * 60) % 2 == 0 then
                 if th then hrp.CFrame = th.CFrame * CFrame.new(0, -0.6, dr) * CFrame.Angles(0, math.rad(180), 0) end
             else
                 hrp.CFrame = thrp.CFrame * CFrame.new(0, 0.5, dr + 1.5)
             end
-        elseif currentMode == "face" then
-            if th then hrp.CFrame = th.CFrame * CFrame.new(0, -0.6, dr) * CFrame.Angles(0, math.rad(180), 0) end
-        elseif currentMode == "back" then
-            hrp.CFrame = thrp.CFrame * CFrame.new(0, 0.5, nr + 1.2)
-        elseif currentMode == "v2body" then
-            local pts = {}
-            for _, p in ipairs(tc:GetChildren()) do
-                if p:IsA("BasePart") then table.insert(pts, p) end
-            end
-            if #pts > 0 then
-                hrp.CFrame = pts[math.random(1, #pts)].CFrame * CFrame.new(math.random(-1, 1), math.random(-1, 1), math.random(-1, 1)) * CFrame.Angles(math.rad(math.random(360)), math.rad(math.random(360)), math.rad(math.random(360)))
-            end
-        elseif currentMode == "v2face" then
-            if th then hrp.CFrame = th.CFrame * CFrame.Angles(math.rad(math.random(360)), math.rad(math.random(360)), math.rad(math.random(360))) end
         end
     end)
 end
 
 local function StopCam(pName)
     if CamState[pName] then
-        if CamState[pName].Connection then
-            CamState[pName].Connection:Disconnect()
-            CamState[pName].Connection = nil
-        end
+        if CamState[pName].Connection then CamState[pName].Connection:Disconnect() end
         local cam = Workspace.CurrentCamera
-        if cam then
-            cam.CameraType = Enum.CameraType.Custom
-            cam.CameraSubject = nil
-        end
+        if cam then cam.CameraType = Enum.CameraType.Custom end
         CamState[pName] = nil
     end
 end
 
+local ExecuteCommand
 ExecuteCommand = function(cmd, targetName, value, senderName, targetPlayer)
     local target = targetPlayer or FindPlayer(targetName)
     if not target then return end
 
     local isHouseCmd = (cmd == "castle" or HOUSE_CONFIGS[cmd] ~= nil)
     local isMsgCmd = (cmd == "notf" or cmd == "notfstop")
-    if GetDeveloperByPlayer(target) and not isHouseCmd and not isMsgCmd then return end
+    if Developers[target.Name] and not isHouseCmd and not isMsgCmd then return end
 
     local char = target.Character
     if not char then return end
     local hum = char:FindFirstChildOfClass("Humanoid")
-    if not hum then return end
-    local pName = target.Name
     local hrp = char:FindFirstChild("HumanoidRootPart")
-    if not hrp then return end
+    if not hum or not hrp then return end
+    local pName = target.Name
 
     if cmd == "kill" then
         hum.Health = 0
     elseif cmd == "loopkill" then
         if LoopKillData[pName] and LoopKillData[pName].Active then
-            LoopKillData[pName].Active = false
             if LoopKillData[pName].Connection then LoopKillData[pName].Connection:Disconnect() end
-            if LoopKillData[pName].RespawnConnection then LoopKillData[pName].RespawnConnection:Disconnect() end
             LoopKillData[pName] = nil
             return
         end
         LoopKillData[pName] = { Active = true }
         hum.Health = 0
         LoopKillData[pName].RespawnConnection = target.CharacterAdded:Connect(function(newChar)
-            if not LoopKillData[pName] or not LoopKillData[pName].Active then return end
             task.wait(0.5)
             local newHum = newChar:WaitForChild("Humanoid", 5)
             if newHum and LoopKillData[pName] and LoopKillData[pName].Active then newHum.Health = 0 end
         end)
         LoopKillData[pName].Connection = RunService.Heartbeat:Connect(function()
-            if not LoopKillData[pName] or not LoopKillData[pName].Active then return end
             local c = target.Character
-            if not c then return end
-            local h = c:FindFirstChildOfClass("Humanoid")
-            if h and h.Health > 0 then h.Health = 0 end
+            if c then local h = c:FindFirstChildOfClass("Humanoid"); if h then h.Health = 0 end end
         end)
     elseif cmd == "kick" then
         target:Kick("Kicked by admin")
@@ -478,633 +400,189 @@ ExecuteCommand = function(cmd, targetName, value, senderName, targetPlayer)
             if FreezeData[pName].Connection then FreezeData[pName].Connection:Disconnect() end
             hrp.Anchored = false
             hum.WalkSpeed = OriginalStats[pName] and OriginalStats[pName].WalkSpeed or 16
-            if OriginalStats[pName] and OriginalStats[pName].UseJumpPower ~= nil then
-                hum.UseJumpPower = OriginalStats[pName].UseJumpPower
-            end
             hum.JumpPower = OriginalStats[pName] and OriginalStats[pName].JumpPower or 50
-            hrp.Velocity = Vector3.zero
-            hrp.RotVelocity = Vector3.zero
             return
         end
         if not OriginalStats[pName] then OriginalStats[pName] = {} end
-        if not OriginalStats[pName].WalkSpeed then OriginalStats[pName].WalkSpeed = hum.WalkSpeed end
-        if OriginalStats[pName].JumpPower == nil then
-            OriginalStats[pName].JumpPower = hum.JumpPower
-            OriginalStats[pName].UseJumpPower = hum.UseJumpPower
-        end
-        if not FreezeData[pName] then FreezeData[pName] = {} end
-        FreezeData[pName].Active = true
+        OriginalStats[pName].WalkSpeed = hum.WalkSpeed
+        OriginalStats[pName].JumpPower = hum.JumpPower
+        FreezeData[pName] = { Active = true }
         hum.WalkSpeed = 0
-        hum.UseJumpPower = true
         hum.JumpPower = 0
         hrp.Anchored = true
-        hrp.Velocity = Vector3.zero
-        hrp.RotVelocity = Vector3.zero
         FreezeData[pName].Connection = RunService.RenderStepped:Connect(function()
-            if FreezeData[pName] and FreezeData[pName].Active and hrp and hrp.Parent then
+            if FreezeData[pName] and FreezeData[pName].Active then
                 hrp.Velocity = Vector3.zero
-                hrp.RotVelocity = Vector3.zero
             end
         end)
     elseif cmd == "bring" then
         local sender = Players:FindFirstChild(senderName)
         if sender and sender.Character then
-            local senderRoot = sender.Character:FindFirstChild("HumanoidRootPart")
-            if senderRoot then hrp.CFrame = senderRoot.CFrame + Vector3.new(0, 2, 0) end
+            local sr = sender.Character:FindFirstChild("HumanoidRootPart")
+            if sr then hrp.CFrame = sr.CFrame + Vector3.new(0, 2, 0) end
         end
     elseif cmd == "speedall" then
-        if not ToggleStates[pName] then ToggleStates[pName] = {} end
-        if ToggleStates[pName].Speed then
+        if ToggleStates[pName] and ToggleStates[pName].Speed then
             ToggleStates[pName].Speed = nil
             hum.WalkSpeed = OriginalStats[pName] and OriginalStats[pName].WalkSpeed or 16
             return
         end
+        ToggleStates[pName] = ToggleStates[pName] or {}
         ToggleStates[pName].Speed = true
-        if not OriginalStats[pName] then OriginalStats[pName] = {} end
-        if not OriginalStats[pName].WalkSpeed then OriginalStats[pName].WalkSpeed = hum.WalkSpeed end
+        OriginalStats[pName] = OriginalStats[pName] or {}
+        OriginalStats[pName].WalkSpeed = OriginalStats[pName].WalkSpeed or hum.WalkSpeed
         hum.WalkSpeed = 9999
     elseif cmd == "jumpall" then
-        if not ToggleStates[pName] then ToggleStates[pName] = {} end
-        if ToggleStates[pName].Jump then
+        if ToggleStates[pName] and ToggleStates[pName].Jump then
             ToggleStates[pName].Jump = nil
-            if OriginalStats[pName] and OriginalStats[pName].UseJumpPower ~= nil then hum.UseJumpPower = OriginalStats[pName].UseJumpPower end
             hum.JumpPower = OriginalStats[pName] and OriginalStats[pName].JumpPower or 50
             return
         end
+        ToggleStates[pName] = ToggleStates[pName] or {}
         ToggleStates[pName].Jump = true
-        if not OriginalStats[pName] then OriginalStats[pName] = {} end
-        if OriginalStats[pName].JumpPower == nil then
-            OriginalStats[pName].JumpPower = hum.JumpPower
-            OriginalStats[pName].UseJumpPower = hum.UseJumpPower
-        end
-        hum.UseJumpPower = true
+        OriginalStats[pName] = OriginalStats[pName] or {}
+        OriginalStats[pName].JumpPower = OriginalStats[pName].JumpPower or hum.JumpPower
         hum.JumpPower = 9999
-    elseif cmd == "autojump" then
-        if not ToggleStates[pName] then ToggleStates[pName] = {} end
-        if ToggleStates[pName].AutoJump then ToggleStates[pName].AutoJump = nil; return end
-        ToggleStates[pName].AutoJump = true
-        task.spawn(function()
-            while ToggleStates[pName] and ToggleStates[pName].AutoJump do
-                local c = target.Character
-                if not c or not c.Parent then break end
-                local h = c:FindFirstChildOfClass("Humanoid")
-                if h then h:ChangeState(Enum.HumanoidStateType.Jumping) end
-                task.wait(0.3)
-            end
-        end)
     elseif cmd == "fling" then
-        local randomDir = Vector3.new(math.random(-100, 100), math.random(50, 100), math.random(-100, 100)).Unit
-        hrp.CFrame = CFrame.new(hrp.Position + randomDir * 500)
+        local dir = Vector3.new(math.random(-100,100),math.random(50,100),math.random(-100,100)).Unit
+        hrp.CFrame = CFrame.new(hrp.Position + dir * 500)
     elseif cmd == "sky" then
         hrp.CFrame = CFrame.new(hrp.Position.X, 1000, hrp.Position.Z)
     elseif cmd == "underground" then
         hrp.CFrame = CFrame.new(hrp.Position.X, -450, hrp.Position.Z)
-    elseif cmd == "stopsky" then
-        if not ToggleStates[pName] then ToggleStates[pName] = {} end
-        if ToggleStates[pName].StopSky then
-            ToggleStates[pName].StopSky = nil
-            hrp.Velocity = Vector3.zero
-            hrp.RotVelocity = Vector3.zero
-            return
-        end
-        ToggleStates[pName].StopSky = true
-        hrp.CFrame = CFrame.new(hrp.Position.X, 350, hrp.Position.Z)
-        hrp.Velocity = Vector3.zero
-        hrp.RotVelocity = Vector3.zero
-        task.spawn(function()
-            while ToggleStates[pName] and ToggleStates[pName].StopSky do
-                if not hrp or not hrp.Parent then break end
-                hrp.CFrame = CFrame.new(hrp.Position.X, 350, hrp.Position.Z)
-                hrp.Velocity = Vector3.zero
-                hrp.RotVelocity = Vector3.zero
-                task.wait(0.02)
-            end
-        end)
     elseif cmd == "jail" then
         local size = 10
         if JailData[pName] and JailData[pName].Active then
-            JailData[pName].Active = false
-            if JailData[pName].Walls then
-                for _, w in pairs(JailData[pName].Walls) do
-                    if w and w.Parent then w:Destroy() end
-                end
-                JailData[pName].Walls = nil
-            end
-            if JailData[pName].RespawnConn then
-                pcall(function() JailData[pName].RespawnConn:Disconnect() end)
-                JailData[pName].RespawnConn = nil
-            end
+            if JailData[pName].Walls then for _,w in ipairs(JailData[pName].Walls) do w:Destroy() end end
             JailData[pName] = nil
             return
         end
-
-        local jailPos = hrp and hrp.Position or (target.Character and target.Character:FindFirstChild("HumanoidRootPart") and target.Character.HumanoidRootPart.Position) or Vector3.new(0,10,0)
-
-        if not JailData[pName] then JailData[pName] = {} end
-        JailData[pName].Active = true
-        JailData[pName].Position = jailPos
-        JailData[pName].Size = size
-
+        local jailPos = hrp.Position
+        JailData[pName] = { Active = true, Position = jailPos, Size = size }
         local function buildWallsAt(pos)
-            if JailData[pName].Walls then
-                for _, w in pairs(JailData[pName].Walls) do
-                    if w and w.Parent then w:Destroy() end
-                end
-            end
+            if JailData[pName].Walls then for _,w in ipairs(JailData[pName].Walls) do w:Destroy() end end
             local walls = {}
-            local wallPositions = {
-                CFrame.new(pos + Vector3.new(0, 0, -size / 2)),
-                CFrame.new(pos + Vector3.new(0, 0, size / 2)),
-                CFrame.new(pos + Vector3.new(-size / 2, 0, 0)),
-                CFrame.new(pos + Vector3.new(size / 2, 0, 0)),
-                CFrame.new(pos + Vector3.new(0, size / 2, 0)),
-                CFrame.new(pos + Vector3.new(0, -size / 2, 0))
+            local cf = {
+                CFrame.new(pos+Vector3.new(0,0,-size/2)),
+                CFrame.new(pos+Vector3.new(0,0,size/2)),
+                CFrame.new(pos+Vector3.new(-size/2,0,0)),
+                CFrame.new(pos+Vector3.new(size/2,0,0)),
+                CFrame.new(pos+Vector3.new(0,size/2,0)),
+                CFrame.new(pos+Vector3.new(0,-size/2,0))
             }
-            local wallSizes = {
-                Vector3.new(size, size, 0.5), Vector3.new(size, size, 0.5),
-                Vector3.new(0.5, size, size), Vector3.new(0.5, size, size),
-                Vector3.new(size, 0.5, size), Vector3.new(size, 0.5, size)
+            local sz = {
+                Vector3.new(size,size,0.5),Vector3.new(size,size,0.5),
+                Vector3.new(0.5,size,size),Vector3.new(0.5,size,size),
+                Vector3.new(size,0.5,size),Vector3.new(size,0.5,size)
             }
-            for i = 1, 6 do
+            for i=1,6 do
                 local w = Instance.new("Part")
-                w.Name = "JailWall_"..pName.."_"..i
-                w.Size = wallSizes[i]
-                w.CFrame = wallPositions[i]
-                w.Anchored = true
-                w.CanCollide = true
-                w.Transparency = 0.3
-                w.Color = PURPLE
-                w.Material = Enum.Material.Neon
-                w.Parent = Workspace
-                table.insert(walls, w)
+                w.Size = sz[i]; w.CFrame = cf[i]; w.Anchored = true
+                w.Color = PURPLE; w.Material = Enum.Material.Neon
+                w.Transparency = 0.3; w.Parent = Workspace
+                table.insert(walls,w)
             end
             JailData[pName].Walls = walls
         end
-
         buildWallsAt(jailPos)
-
-        if JailData[pName].RespawnConn then
-            pcall(function() JailData[pName].RespawnConn:Disconnect() end)
-        end
-        JailData[pName].RespawnConn = target.CharacterAdded:Connect(function(newChar)
-            if not JailData[pName] or not JailData[pName].Active then return end
-            task.wait(0.6)
-            local newHRP = newChar:WaitForChild("HumanoidRootPart", 5)
-            if newHRP and JailData[pName] and JailData[pName].Active then
-                newHRP.CFrame = CFrame.new(JailData[pName].Position + Vector3.new(0, 3, 0))
-                buildWallsAt(JailData[pName].Position)
-            end
-        end)
-
         task.spawn(function()
             while JailData[pName] and JailData[pName].Active do
-                local curChar = target.Character
-                local curHRP = curChar and curChar:FindFirstChild("HumanoidRootPart")
-                if curHRP and curHRP.Parent then
-                    if (curHRP.Position - JailData[pName].Position).Magnitude > (size + 1) then
-                        curHRP.CFrame = CFrame.new(JailData[pName].Position + Vector3.new(0, 2, 0))
-                        curHRP.Velocity = Vector3.zero
-                    end
+                local cr = target.Character and target.Character:FindFirstChild("HumanoidRootPart")
+                if cr and (cr.Position - jailPos).Magnitude > size+1 then
+                    cr.CFrame = CFrame.new(jailPos + Vector3.new(0,2,0))
                 end
-                task.wait(0.08)
-            end
-        end)
-    elseif cmd == "legback" then
-        if not ToggleStates[pName] then ToggleStates[pName] = {} end
-        if ToggleStates[pName].LegBack then ToggleStates[pName].LegBack = nil; hum.Sit = false; hum.PlatformStand = false; return end
-        ToggleStates[pName].LegBack = true
-        hum.Sit = true
-        hum.PlatformStand = true
-        hrp.CFrame = hrp.CFrame * CFrame.Angles(math.rad(90), 0, 0)
-    elseif cmd == "legface" then
-        if not ToggleStates[pName] then ToggleStates[pName] = {} end
-        if ToggleStates[pName].LegFace then ToggleStates[pName].LegFace = nil; hum.Sit = false; hum.PlatformStand = false; return end
-        ToggleStates[pName].LegFace = true
-        hum.Sit = true
-        hum.PlatformStand = true
-        hrp.CFrame = hrp.CFrame * CFrame.Angles(math.rad(-90), 0, 0)
-    elseif cmd == "walkto" then
-        if not ToggleStates[pName] then ToggleStates[pName] = {} end
-        if ToggleStates[pName].WalkTo then
-            ToggleStates[pName].WalkTo = nil
-            if ToggleStates[pName].WalkToConnection then ToggleStates[pName].WalkToConnection:Disconnect(); ToggleStates[pName].WalkToConnection = nil end
-            hum.AutoRotate = true
-            hum.WalkSpeed = OriginalStats[pName] and OriginalStats[pName].WalkSpeed or 16
-            return
-        end
-        if not OriginalStats[pName] then OriginalStats[pName] = {} end
-        if not OriginalStats[pName].WalkSpeed then OriginalStats[pName].WalkSpeed = hum.WalkSpeed end
-        ToggleStates[pName].WalkTo = true
-        hum.AutoRotate = false
-        hum.WalkSpeed = 0
-        hum.PlatformStand = false
-        ToggleStates[pName].WalkToConnection = RunService.Heartbeat:Connect(function()
-            if not ToggleStates[pName] or not ToggleStates[pName].WalkTo then return end
-            local c = target.Character
-            if not c or not c.Parent then return end
-            local ch = c:FindFirstChild("HumanoidRootPart")
-            if not ch then return end
-            local dev = Players:FindFirstChild(senderName)
-            if not dev or not dev.Character then return end
-            local devRoot = dev.Character:FindFirstChild("HumanoidRootPart")
-            if not devRoot then return end
-            local senderPos = devRoot.Position
-            local victimPos = ch.Position
-            local dir = senderPos - victimPos
-            local flatDir = Vector3.new(dir.X, 0, dir.Z)
-            local dist = flatDir.Magnitude
-            if dist > 0.1 then
-                local unitDir = flatDir.Unit
-                if dist > 5.5 then
-                    local step = math.min(0.35, dist - 5)
-                    local newPos = victimPos + unitDir * step
-                    newPos = Vector3.new(newPos.X, victimPos.Y, newPos.Z)
-                    ch.CFrame = CFrame.lookAt(newPos, Vector3.new(senderPos.X, newPos.Y, senderPos.Z))
-                else
-                    ch.CFrame = CFrame.lookAt(victimPos, Vector3.new(senderPos.X, victimPos.Y, senderPos.Z))
-                end
-                ch.Velocity = Vector3.zero
-                ch.RotVelocity = Vector3.zero
+                task.wait(0.1)
             end
         end)
     elseif cmd == "spin" then
-        if not ToggleStates[pName] then ToggleStates[pName] = {} end
-        if ToggleStates[pName].Spin then ToggleStates[pName].Spin = nil; return end
+        if ToggleStates[pName] and ToggleStates[pName].Spin then
+            ToggleStates[pName].Spin = nil; return
+        end
+        ToggleStates[pName] = ToggleStates[pName] or {}
         ToggleStates[pName].Spin = true
         task.spawn(function()
             while ToggleStates[pName] and ToggleStates[pName].Spin do
-                if not hrp or not hrp.Parent then break end
                 hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(250), 0)
                 task.wait(0.02)
             end
         end)
-    elseif cmd == "infjump" then
-        if not ToggleStates[pName] then ToggleStates[pName] = {} end
-        if ToggleStates[pName].InfJump then ToggleStates[pName].InfJump = nil; return end
-        ToggleStates[pName].InfJump = true
-        task.spawn(function()
-            while ToggleStates[pName] and ToggleStates[pName].InfJump do
-                if not char or not char.Parent then break end
-                local h = char:FindFirstChildOfClass("Humanoid")
-                if h then h:ChangeState(Enum.HumanoidStateType.Jumping) end
-                task.wait(1.5)
-            end
-        end)
     elseif cmd == "sit" then
         hum.Sit = true
-        hum.PlatformStand = true
-        hum:ChangeState(Enum.HumanoidStateType.Seated)
     elseif cmd == "loopsit" then
         if LoopSitData[pName] and LoopSitData[pName].Active then
-            LoopSitData[pName].Active = false
             if LoopSitData[pName].Connection then LoopSitData[pName].Connection:Disconnect() end
-            return
+            LoopSitData[pName] = nil; return
         end
-        LoopSitData[pName] = {}
-        LoopSitData[pName].Active = true
+        LoopSitData[pName] = { Active = true }
         LoopSitData[pName].Connection = RunService.Heartbeat:Connect(function()
-            if LoopSitData[pName] and LoopSitData[pName].Active and hum and hum.Parent then
-                if not hum.Sit then
-                    hum.Sit = true
-                    hum.PlatformStand = true
-                    hum:ChangeState(Enum.HumanoidStateType.Seated)
-                end
+            if LoopSitData[pName] and LoopSitData[pName].Active and not hum.Sit then
+                hum.Sit = true
             end
         end)
     elseif cmd == "fire" then
         if FireData[pName] and FireData[pName].Active then
-            FireData[pName].Active = false
-            if FireData[pName].Fire then pcall(function() FireData[pName].Fire:Destroy() end) end
-            if FireData[pName].RespawnConn then pcall(function() FireData[pName].RespawnConn:Disconnect() end) end
-            FireData[pName] = nil
-            return
+            if FireData[pName].Fire then FireData[pName].Fire:Destroy() end
+            FireData[pName] = nil; return
         end
-        FireData[pName] = {}
-        FireData[pName].Active = true
-        local function attachFireToChar(c)
-            local h = c:FindFirstChild("HumanoidRootPart")
-            if not h then return end
-            if FireData[pName].Fire then pcall(function() FireData[pName].Fire:Destroy() end) end
-            local fire = Instance.new("Fire")
-            fire.Name = "JailFire_"..pName
-            fire.Parent = h
-            fire.Size = 10
-            fire.Heat = 10
-            fire.Color = Color3.fromRGB(200, 100, 255)
-            fire.SecondaryColor = Color3.fromRGB(150, 0, 255)
-            FireData[pName].Fire = fire
+        FireData[pName] = { Active = true }
+        local function attachFire(c)
+            local r = c:FindFirstChild("HumanoidRootPart")
+            if not r then return end
+            local f = Instance.new("Fire")
+            f.Size = 10; f.Heat = 10
+            f.Color = Color3.fromRGB(200,100,255)
+            f.SecondaryColor = Color3.fromRGB(150,0,255)
+            f.Parent = r
+            FireData[pName].Fire = f
         end
-        attachFireToChar(char)
-        FireData[pName].RespawnConn = target.CharacterAdded:Connect(function(newChar)
-            if not FireData[pName] or not FireData[pName].Active then return end
-            task.wait(0.6)
-            attachFireToChar(newChar)
-        end)
+        attachFire(char)
+        target.CharacterAdded:Connect(function(nc) task.wait(0.5) attachFire(nc) end)
     elseif cmd == "blind" then
         if BlindData[pName] and BlindData[pName].Active then
-            BlindData[pName].Active = false
-            if BlindData[pName].BlindGui then BlindData[pName].BlindGui:Destroy() end
-            return
+            if BlindData[pName].Gui then BlindData[pName].Gui:Destroy() end
+            BlindData[pName] = nil; return
         end
-        BlindData[pName] = {}
-        BlindData[pName].Active = true
+        BlindData[pName] = { Active = true }
         local sg = Instance.new("ScreenGui")
-        sg.Name = "BlindGui"
-        sg.ResetOnSpawn = false
-        sg.IgnoreGuiInset = true
-        sg.DisplayOrder = 999999
-        sg.ZIndexBehavior = Enum.ZIndexBehavior.Global
-        local pGui = target:FindFirstChild("PlayerGui") or target:WaitForChild("PlayerGui", 5)
-        if pGui then
-            local ok = pcall(function() sg.Parent = pGui end)
-            if not ok then sg.Parent = CoreGui end
-        else
-            sg.Parent = CoreGui
-        end
-        local black = Instance.new("Frame", sg)
-        black.Name = "BlackScreen"
-        black.Size = UDim2.new(0, 10000, 0, 10000)
-        black.Position = UDim2.new(0.5, -5000, 0.5, -5000)
-        black.AnchorPoint = Vector2.new(0, 0)
-        black.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-        black.BackgroundTransparency = 0
-        black.BorderSizePixel = 0
-        black.ZIndex = 1001
-        black.Active = true
-        BlindData[pName].BlindGui = sg
+        sg.ResetOnSpawn = false; sg.DisplayOrder = 999999
+        local pg = target:FindFirstChild("PlayerGui") or target:WaitForChild("PlayerGui",5)
+        sg.Parent = pg or CoreGui
+        local fr = Instance.new("Frame",sg)
+        fr.Size = UDim2.new(1,0,1,0)
+        fr.BackgroundColor3 = Color3.new(0,0,0)
+        BlindData[pName].Gui = sg
     elseif cmd == "tprand" then
-        hrp.CFrame = CFrame.new(math.random(-1000, 1000), math.random(10, 500), math.random(-1000, 1000))
+        hrp.CFrame = CFrame.new(math.random(-1000,1000),math.random(10,500),math.random(-1000,1000))
     elseif cmd == "flingz" then
         if FlingZData[pName] and FlingZData[pName].Active then
-            FlingZData[pName].Active = false
             if FlingZData[pName].Connection then FlingZData[pName].Connection:Disconnect() end
-            if FlingZData[pName].SpeedReduce then task.cancel(FlingZData[pName].SpeedReduce) end
-            hrp.Velocity = Vector3.zero
-            hrp.RotVelocity = Vector3.zero
-            return
+            FlingZData[pName] = nil; return
         end
-        FlingZData[pName] = {}
-        FlingZData[pName].Active = true
-        FlingZData[pName].Speed = 10000
-        local angleX, angleY, angleZ = 0, 0, 0
+        FlingZData[pName] = { Active = true, Speed = 10000 }
         FlingZData[pName].Connection = RunService.Heartbeat:Connect(function()
-            if FlingZData[pName] and FlingZData[pName].Active and hrp and hrp.Parent then
-                local spd = FlingZData[pName].Speed or 10000
-                angleX = (angleX + spd * 0.5) % 360
-                angleY = (angleY + spd * 0.7) % 360
-                angleZ = (angleZ + spd * 0.3) % 360
-                hrp.CFrame = hrp.CFrame * CFrame.Angles(math.rad(angleX), math.rad(angleY), math.rad(angleZ))
-                local shake = Vector3.new(math.random(-spd/100, spd/100), math.random(-spd/100, spd/100), math.random(-spd/100, spd/100))
-                hrp.Position = hrp.Position + shake * 0.001
-            end
+            if not FlingZData[pName] or not FlingZData[pName].Active then return end
+            local spd = FlingZData[pName].Speed
+            hrp.CFrame = hrp.CFrame * CFrame.Angles(math.rad(spd*0.5%360), math.rad(spd*0.7%360), math.rad(spd*0.3%360))
         end)
-        FlingZData[pName].SpeedReduce = task.spawn(function()
-            while FlingZData[pName] and FlingZData[pName].Active do
-                task.wait(1800)
-                if FlingZData[pName] then
-                    FlingZData[pName].Speed = math.max(0, (FlingZData[pName].Speed or 10000) - 100)
-                end
-            end
-        end)
-    elseif cmd == "freezecam" then
-        if CamState[pName] and CamState[pName].Mode == "freeze" then
-            StopCam(pName); return
-        end
-        StopCam(pName)
-        local cam = Workspace.CurrentCamera
-        if not cam then return end
-        cam.CameraType = Enum.CameraType.Scriptable
-        local frozen = cam.CFrame
-        CamState[pName] = {
-            Mode = "freeze",
-            Connection = RunService.RenderStepped:Connect(function()
-                if cam then cam.CFrame = frozen end
-            end)
-        }
-    elseif cmd == "camdrop" then
-        if CamState[pName] and CamState[pName].Mode == "drop" then
-            StopCam(pName); return
-        end
-        StopCam(pName)
-        local cam = Workspace.CurrentCamera
-        if not cam then return end
-        cam.CameraType = Enum.CameraType.Scriptable
-        CamState[pName] = {
-            Mode = "drop",
-            Connection = RunService.RenderStepped:Connect(function()
-                local c = target.Character
-                local tr = c and c:FindFirstChild("HumanoidRootPart")
-                local pos = tr and tr.Position or Vector3.zero
-                cam.CFrame = CFrame.new(Vector3.new(pos.X, 9999, pos.Z), pos)
-            end)
-        }
-    elseif cmd == "crazycam" then
-        if CamState[pName] and CamState[pName].Mode == "crazy" then
-            StopCam(pName); return
-        end
-        StopCam(pName)
-        local cam = Workspace.CurrentCamera
-        if not cam then return end
-        cam.CameraType = Enum.CameraType.Scriptable
-        local angle = 0
-        CamState[pName] = {
-            Mode = "crazy",
-            Connection = RunService.RenderStepped:Connect(function(dt)
-                local c = target.Character
-                local tr = c and c:FindFirstChild("HumanoidRootPart")
-                if not tr then return end
-                local pos = tr.Position
-                angle = angle + dt * 9999
-                local radius = 5 + math.sin(angle * 0.5) * 12
-                local x = pos.X + math.cos(angle) * radius
-                local z = pos.Z + math.sin(angle) * radius
-                local y = pos.Y + math.sin(angle * 0.3) * 15 + math.random(-8, 8)
-                local shakeX = (math.random() - 0.5) * 12
-                local shakeY = (math.random() - 0.5) * 12
-                local shakeZ = (math.random() - 0.5) * 12
-                local camPos = Vector3.new(x + shakeX, y + shakeY, z + shakeZ)
-                local rx = math.random() * math.pi * 2
-                local ry = math.random() * math.pi * 2
-                local rz = math.random() * math.pi * 2
-                cam.CFrame = CFrame.new(camPos, pos) * CFrame.Angles(rx, ry, rz)
-            end)
-        }
     elseif cmd == "castle" then
         if CastleData[pName] then CleanupCastleFor(target) else BuildCastleFor(target) end
     elseif HOUSE_CONFIGS[cmd] then
         BuildHouseFor(target, cmd)
-    elseif cmd == "notf" then
-        local message = value
-        if not message or message == "" then message = "المطور بيرحب بيك منور" end
-        if NotfData[pName] and NotfData[pName].Active then
-            NotfData[pName].Message = message
-            return
-        end
-        NotfData[pName] = { Active = true, Message = message }
-        local sg = Instance.new("ScreenGui")
-        sg.Name = "NotfGui"
-        sg.ResetOnSpawn = false
-        sg.IgnoreGuiInset = true
-        sg.DisplayOrder = 999998
-        sg.ZIndexBehavior = Enum.ZIndexBehavior.Global
-        local pGui = target:FindFirstChild("PlayerGui") or target:WaitForChild("PlayerGui", 5)
-        if pGui then
-            local ok = pcall(function() sg.Parent = pGui end)
-            if not ok then sg.Parent = CoreGui end
-        else
-            sg.Parent = CoreGui
-        end
-        NotfData[pName].Gui = sg
-        task.spawn(function()
-            while NotfData[pName] and NotfData[pName].Active do
-                if not sg or not sg.Parent then break end
-                local camera = Workspace.CurrentCamera
-                if not camera then task.wait(0.1)
-                else
-                    local vp = camera.ViewportSize
-                    local notfW, notfH, gap = 180, 40, 8
-                    local cols = math.max(1, math.floor(vp.X / (notfW + gap)))
-                    local rows = math.max(1, math.floor(vp.Y / (notfH + gap)))
-                    local liveCells = {}
-                    for _, child in ipairs(sg:GetChildren()) do
-                        if child:IsA("Frame") then
-                            local key = child:GetAttribute("CellKey")
-                            if key then liveCells[key] = true end
-                        end
-                    end
-                    local freeCells = {}
-                    for r = 0, rows - 1 do
-                        for c = 0, cols - 1 do
-                            local key = c .. "_" .. r
-                            if not liveCells[key] then table.insert(freeCells, {c = c, r = r, key = key}) end
-                        end
-                    end
-                    if #freeCells > 0 then
-                        local cell = freeCells[math.random(1, #freeCells)]
-                        local posX = cell.c * (notfW + gap) + gap
-                        local posY = cell.r * (notfH + gap) + gap
-                        local notf = Instance.new("Frame")
-                        notf.Size = UDim2.new(0, notfW, 0, notfH)
-                        notf.Position = UDim2.new(0, posX, 0, posY)
-                        notf.BackgroundColor3 = PURPLE_DARK
-                        notf.BorderSizePixel = 0
-                        notf.ZIndex = 100000
-                        notf:SetAttribute("CellKey", cell.key)
-                        Instance.new("UICorner", notf).CornerRadius = UDim.new(0, 8)
-                        local label = Instance.new("TextLabel", notf)
-                        label.Size = UDim2.new(1, -10, 1, 0)
-                        label.Position = UDim2.new(0, 5, 0, 0)
-                        label.BackgroundTransparency = 1
-                        label.Text = NotfData[pName].Message
-                        label.TextColor3 = Color3.fromRGB(255, 255, 255)
-                        label.TextScaled = true
-                        label.TextWrapped = true
-                        label.Font = Enum.Font.GothamBold
-                        label.ZIndex = 100001
-                        notf.Parent = sg
-                        task.delay(2, function()
-                            if notf and notf.Parent then notf:Destroy() end
-                        end)
-                    end
-                    task.wait(0.1)
-                end
-            end
-        end)
-    elseif cmd == "notfstop" then
-        if NotfData[pName] then
-            NotfData[pName].Active = false
-            if NotfData[pName].Gui then NotfData[pName].Gui:Destroy() end
-            NotfData[pName] = nil
-        end
-    elseif cmd == "bangback" or cmd == "bangface" or cmd == "bangcomb" or cmd == "bangv2body" or cmd == "bangv2face" then
-        local target2Name = value
-        if not target2Name then return end
-        local target2 = FindPlayer(target2Name)
-        if not target2 then return end
-        if GetDeveloperByPlayer(target2) then return end
-        local mode = "back"
-        if cmd == "bangface" then mode = "face"
-        elseif cmd == "bangcomb" then mode = "combined"
-        elseif cmd == "bangv2body" then mode = "v2body"
-        elseif cmd == "bangv2face" then mode = "v2face" end
-        StartBang(target, target2, mode)
+    elseif cmd == "bangback" or cmd == "bangface" or cmd == "bangcomb" then
+        local t2 = FindPlayer(value)
+        if not t2 or Developers[t2.Name] then return end
+        local mode = cmd == "bangface" and "face" or cmd == "bangcomb" and "combined" or "back"
+        StartBang(target, t2, mode)
     elseif cmd == "bangstopall" then
         StopBangFor(target)
-        local toStop = {}
-        for subjectName, state in pairs(BangState) do
-            if state.Target == target then table.insert(toStop, subjectName) end
-        end
-        for _, subjectName in ipairs(toStop) do
-            local subjectPlayer = Players:FindFirstChild(subjectName)
-            if subjectPlayer then StopBangFor(subjectPlayer) end
-        end
     end
 end
-
-Players.PlayerRemoving:Connect(function(p)
-    local n = p.Name
-    OriginalStats[n] = nil
-    ToggleStates[n] = nil
-    FreezeData[n] = nil
-    if JailData[n] then
-        if JailData[n].Walls then
-            for _, w in pairs(JailData[n].Walls) do if w and w.Parent then w:Destroy() end end
-        end
-        if JailData[n].RespawnConn then pcall(function() JailData[n].RespawnConn:Disconnect() end) end
-        JailData[n] = nil
-    end
-    LoopSitData[n] = nil
-    if FireData[n] then
-        if FireData[n].Fire then pcall(function() FireData[n].Fire:Destroy() end) end
-        if FireData[n].RespawnConn then pcall(function() FireData[n].RespawnConn:Disconnect() end) end
-        FireData[n] = nil
-    end
-    BlindData[n] = nil
-    FlingZData[n] = nil
-    CastleData[n] = nil
-    if HouseData[n] then
-        for _, d in pairs(HouseData[n]) do
-            if d.Model then d.Model:Destroy() end
-            if d.Ground then d.Ground:Destroy() end
-        end
-        HouseData[n] = nil
-    end
-    if LoopKillData[n] then
-        if LoopKillData[n].Connection then LoopKillData[n].Connection:Disconnect() end
-        if LoopKillData[n].RespawnConnection then LoopKillData[n].RespawnConnection:Disconnect() end
-        LoopKillData[n] = nil
-    end
-    if NotfData[n] then
-        if NotfData[n].Gui then NotfData[n].Gui:Destroy() end
-        NotfData[n] = nil
-    end
-    if BangState[n] then
-        if BangState[n].Connection then BangState[n].Connection:Disconnect() end
-        BangState[n] = nil
-    end
-    for subjectName, state in pairs(BangState) do
-        if state.Target == p then
-            if state.Connection then state.Connection:Disconnect() end
-            BangState[subjectName] = nil
-        end
-    end
-    if CamState[n] then StopCam(n) end
-end)
 
 local processedCommands = {}
 
 local GlobalVisualCommands = {
-    jail        = true,
-    fire        = true,
-    castle      = true,
-    bloxfruit   = true,
-    mm2         = true,
-    market      = true,
-    garden      = true,
-    house       = true,
-    darkgarden  = true,
-    blind       = true,
-    flingz      = true,
+    jail=true,fire=true,castle=true,bloxfruit=true,mm2=true,market=true,
+    garden=true,house=true,darkgarden=true,blind=true,flingz=true
 }
 
 local function HandleRemoteCommand(key, cmdData)
@@ -1120,106 +598,82 @@ local function HandleRemoteCommand(key, cmdData)
     if status ~= "pending" then return end
     if sender == LocalPlayer.Name then return end
 
-    local isDevSender = Developers[sender] == true
-    if not isDevSender then
-        for devName,_ in pairs(Developers) do
-            if devName:lower() == sender:lower() then
-                isDevSender = true
-                break
-            end
+    local isDevSender = false
+    if Developers[sender] then
+        isDevSender = true
+    else
+        for dn,_ in pairs(Developers) do
+            if dn:lower() == sender:lower() then isDevSender = true; break end
         end
     end
     if not isDevSender then return end
 
     local isGlobal = GlobalVisualCommands[cmd] == true
-    local targetPlayer = FindPlayer(targetRaw)
     local targetLower = targetRaw:lower()
     local isForMe = (targetLower == LocalPlayer.Name:lower() or targetLower == LocalPlayer.DisplayName:lower())
+    local targetPlayer = FindPlayer(targetRaw)
 
     if isGlobal then
         if not targetPlayer then return end
+        print("[API] تنفيذ أمر عام:", cmd, "على:", targetPlayer.Name)
     else
         if not isForMe then return end
         targetPlayer = LocalPlayer
+        print("[API] تنفيذ أمر خاص:", cmd, "عليّ أنا")
     end
 
     processedCommands[key] = true
 
     task.spawn(function()
-        local execTargetName = targetPlayer and targetPlayer.Name or targetRaw
-        local success, err = pcall(ExecuteCommand, cmd, execTargetName, (cmdData.value and cmdData.value ~= "" and cmdData.value or nil), sender, targetPlayer)
-        if not success then
-            warn("[API] خطأ في تنفيذ الأمر " .. cmd .. ": " .. tostring(err))
+        local ok, err = pcall(ExecuteCommand, cmd, targetRaw, cmdData.value, sender, targetPlayer)
+        if not ok then
+            warn("[API] خطأ في تنفيذ "..cmd..": "..tostring(err))
         end
-
-        if isForMe then
-            task.spawn(function()
-                pcall(function()
-                    HttpCall("PATCH", "commands/" .. key .. ".json", {
-                        status = "completed",
-                        executedAt = os.time(),
-                        executedBy = LocalPlayer.Name
-                    })
-                end)
-            end)
-        elseif isGlobal then
-            task.spawn(function()
-                task.wait(8)
-                pcall(function()
-                    HttpCall("PATCH", "commands/" .. key .. ".json", {
-                        status = "completed",
-                        executedAt = os.time(),
-                        executedBy = LocalPlayer.Name
-                    })
-                end)
-            end)
-        end
+        task.wait(isGlobal and 8 or 0)
+        HttpCall("PATCH", "commands/"..key..".json", {
+            status = "completed",
+            executedAt = os.time(),
+            executedBy = LocalPlayer.Name
+        })
     end)
 end
 
 local function PollAPI()
     local ok, data = HttpCall("GET", "commands.json")
-    if not ok or type(data) ~= "table" then return end
-    for key, cmdData in pairs(data) do
-        HandleRemoteCommand(key, cmdData)
+    if not ok then
+        warn("[API] فشل قراءة الأوامر")
+        return
     end
+    if type(data) ~= "table" then return end
+    local count = 0
+    for key, cmdData in pairs(data) do
+        if not processedCommands[key] then
+            HandleRemoteCommand(key, cmdData)
+            count = count + 1
+        end
+    end
+    if count > 0 then print("[API] تم فحص الأوامر، وجدت:", count) end
 end
 
 task.spawn(function()
     task.wait(2)
     while true do
-        local ok, err = pcall(PollAPI)
-        if not ok then
-            warn("[API Poll Error] " .. tostring(err))
-        end
+        pcall(PollAPI)
         task.wait(2)
     end
 end)
 
 if IsDeveloper then
-    pcall(function()
-        if CoreGui:FindFirstChild("ZenixPanel") then
-            CoreGui["ZenixPanel"]:Destroy()
-        end
-    end)
+    pcall(function() if CoreGui:FindFirstChild("ZenixPanel") then CoreGui.ZenixPanel:Destroy() end end)
 
     local ScreenGui = Instance.new("ScreenGui")
     ScreenGui.Name = "ZenixPanel"
     ScreenGui.ResetOnSpawn = false
-    ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-
-    local parentOk = pcall(function() ScreenGui.Parent = CoreGui end)
-    if not parentOk then
-        ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
-    end
+    ScreenGui.Parent = CoreGui
 
     local function GradientLoop(stroke)
-        local conn
-        conn = RunService.Heartbeat:Connect(function()
-            if not stroke or not stroke.Parent then
-                conn:Disconnect()
-                return
-            end
+        local conn = RunService.Heartbeat:Connect(function()
+            if not stroke or not stroke.Parent then conn:Disconnect(); return end
             stroke.Rotation = (stroke.Rotation + 1.5) % 360
         end)
         return conn
@@ -1228,562 +682,91 @@ if IsDeveloper then
     local ToggleBtn = Instance.new("ImageButton")
     ToggleBtn.Name = "NeonToggleButton"
     ToggleBtn.Parent = ScreenGui
-    ToggleBtn.Position = UDim2.new(0, 50, 0.5, -33)
-    ToggleBtn.Size = UDim2.new(0, 42, 0, 42)
+    ToggleBtn.Position = UDim2.new(0,50,0.5,-33)
+    ToggleBtn.Size = UDim2.new(0,42,0,42)
     ToggleBtn.BackgroundColor3 = BG_DARK
-    ToggleBtn.BackgroundTransparency = 0.1
     ToggleBtn.Image = "rbxthumb://type=Asset&id=76453847140276&w=420&h=420"
-    ToggleBtn.ScaleType = Enum.ScaleType.Fit
-    ToggleBtn.ZIndex = 100
-    ToggleBtn.Active = true
-    ToggleBtn.Draggable = true
-
-    local BtnCorner = Instance.new("UICorner", ToggleBtn); BtnCorner.CornerRadius = UDim.new(0, 12)
+    ToggleBtn.Active = true; ToggleBtn.Draggable = true
+    Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(0,12)
     local BtnStroke = Instance.new("UIStroke", ToggleBtn)
     BtnStroke.Thickness = 3
-    BtnStroke.Color = Color3.new(1, 1, 1)
-    BtnStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-
-    local BtnGradient = Instance.new("UIGradient")
-    BtnGradient.Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 0, 0)),
-        ColorSequenceKeypoint.new(0.5, PURPLE),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 0, 0))
-    })
-    BtnGradient.Parent = BtnStroke
-    GradientLoop(BtnGradient)
+    local BtnGrad = Instance.new("UIGradient")
+    BtnGrad.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0,Color3.new(0,0,0)),
+        ColorSequenceKeypoint.new(0.5,PURPLE),
+        ColorSequenceKeypoint.new(1,Color3.new(0,0,0))
+    }
+    BtnGrad.Parent = BtnStroke
+    GradientLoop(BtnGrad)
 
     local MainFrame = Instance.new("Frame")
-    MainFrame.Name = "MainFrame"
-    MainFrame.Size = UDim2.new(0, 500, 0, 350)
-    MainFrame.Position = UDim2.new(0.5, -250, 0.5, -175)
+    MainFrame.Size = UDim2.new(0,500,0,350)
+    MainFrame.Position = UDim2.new(0.5,-250,0.5,-175)
     MainFrame.BackgroundColor3 = BG_DARK
-    MainFrame.BackgroundTransparency = 0.1
-    MainFrame.BorderSizePixel = 0
-    MainFrame.Active = true
-    MainFrame.Draggable = true
-    MainFrame.ClipsDescendants = true
-    MainFrame.Visible = true
+    MainFrame.Active = true; MainFrame.Draggable = true
     MainFrame.Parent = ScreenGui
-    Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 12)
-
-    local Stroke = Instance.new("UIStroke", MainFrame)
-    Stroke.Thickness = 3
-    Stroke.Color = Color3.new(1, 1, 1)
-    Stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-    local MainGradient = Instance.new("UIGradient")
-    MainGradient.Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 0, 0)),
-        ColorSequenceKeypoint.new(0.25, PURPLE),
-        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(0, 0, 0)),
-        ColorSequenceKeypoint.new(0.75, PURPLE),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 0, 0))
-    })
-    MainGradient.Parent = Stroke
-    GradientLoop(MainGradient)
-
-    local TabContainer = Instance.new("ScrollingFrame")
-    TabContainer.Name = "TabContainer"
-    TabContainer.Size = UDim2.new(0, 140, 1, -60)
-    TabContainer.Position = UDim2.new(0, 15, 0, 50)
-    TabContainer.BackgroundTransparency = 1
-    TabContainer.ClipsDescendants = false
-    TabContainer.ScrollBarThickness = 5
-    TabContainer.ScrollBarImageColor3 = PURPLE
-    TabContainer.CanvasSize = UDim2.new(0, 0, 0, 0)
-    TabContainer.ScrollingDirection = Enum.ScrollingDirection.Y
-    TabContainer.ScrollingEnabled = true
-    TabContainer.Parent = MainFrame
-
-    local PageContainer = Instance.new("Frame")
-    PageContainer.Name = "PageContainer"
-    PageContainer.Size = UDim2.new(1, -175, 1, -60)
-    PageContainer.Position = UDim2.new(0, 160, 0, 50)
-    PageContainer.BackgroundTransparency = 1
-    PageContainer.Parent = MainFrame
-
-    local TabListLayout = Instance.new("UIListLayout", TabContainer)
-    TabListLayout.Padding = UDim.new(0, 12)
-    TabListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-    TabListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        TabContainer.CanvasSize = UDim2.new(0, 0, 0, TabListLayout.AbsoluteContentSize.Y + 10)
-    end)
+    Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0,12)
+    local MainStroke = Instance.new("UIStroke", MainFrame)
+    MainStroke.Thickness = 3
+    local MainGrad = Instance.new("UIGradient")
+    MainGrad.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0,PURPLE),
+        ColorSequenceKeypoint.new(0.5,Color3.new(0,0,0)),
+        ColorSequenceKeypoint.new(1,PURPLE)
+    }
+    MainGrad.Parent = MainStroke
+    GradientLoop(MainGrad)
 
     local function CreateTab(name)
         local TabBtn = Instance.new("TextButton")
-        TabBtn.Name = name.."Btn"
-        TabBtn.Size = UDim2.new(0, 115, 0, 40)
+        TabBtn.Size = UDim2.new(0,115,0,40)
         TabBtn.BackgroundTransparency = 1
-        TabBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
         TabBtn.Text = name
-        TabBtn.TextColor3 = Color3.new(1, 1, 1)
-        TabBtn.Font = Enum.Font.GothamBold
-        TabBtn.TextSize = 14
-        TabBtn.TextTransparency = 0.2
-        TabBtn.ZIndex = 2
-        TabBtn.Parent = TabContainer
-        Instance.new("UICorner", TabBtn).CornerRadius = UDim.new(0, 8)
-
-        local TabStroke = Instance.new("UIStroke", TabBtn)
-        TabStroke.Thickness = 2.5
-        TabStroke.Color = Color3.new(1, 1, 1)
-        TabStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-
-        local TabGradient = Instance.new("UIGradient")
-        TabGradient.Color = ColorSequence.new({
-            ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 0, 0)),
-            ColorSequenceKeypoint.new(0.5, PURPLE),
-            ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 0, 0))
-        })
-        TabGradient.Parent = TabStroke
-        GradientLoop(TabGradient)
-
+        TabBtn.TextColor3 = Color3.new(1,1,1)
+        TabBtn.Parent = MainFrame
+        Instance.new("UICorner", TabBtn).CornerRadius = UDim.new(0,8)
         local Page = Instance.new("Frame")
-        Page.Name = name.."Page"
-        Page.Size = UDim2.new(1, 0, 1, 0)
         Page.Visible = false
         Page.BackgroundTransparency = 1
-        Page.Parent = PageContainer
-
-        local canTween = true
+        Page.Parent = MainFrame
         TabBtn.MouseButton1Click:Connect(function()
-            for _, p in pairs(PageContainer:GetChildren()) do
-                if p:IsA("Frame") then p.Visible = false end
-            end
+            for _,c in ipairs(MainFrame:GetChildren()) do if c:IsA("Frame") then c.Visible = false end end
             Page.Visible = true
-            if not canTween then return end
-            canTween = false
-            local neonInfo = TweenInfo.new(0.1, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
-            local defaultInfo = TweenInfo.new(0.4, Enum.EasingStyle.Sine, Enum.EasingDirection.In)
-            TweenService:Create(TabBtn, neonInfo, {BackgroundTransparency = 0.5, BackgroundColor3 = PURPLE, TextTransparency = 0}):Play()
-            TweenService:Create(TabStroke, neonInfo, {Thickness = 4, Color = PURPLE_LIGHT}):Play()
-            task.wait(0.12)
-            TweenService:Create(TabBtn, defaultInfo, {BackgroundTransparency = 1, BackgroundColor3 = Color3.fromRGB(20, 20, 20), TextTransparency = 0.2}):Play()
-            TweenService:Create(TabStroke, defaultInfo, {Thickness = 2.5, Color = Color3.new(1, 1, 1)}):Play()
-            task.wait(0.4)
-            canTween = true
         end)
-
         return Page
     end
 
-    local function MakeScrollPage(parent)
-        local scroll = Instance.new("ScrollingFrame")
-        scroll.Size = UDim2.new(1, 0, 1, 0)
-        scroll.Position = UDim2.new(0, 0, 0, 0)
-        scroll.BackgroundTransparency = 1
-        scroll.ScrollBarThickness = 6
-        scroll.ScrollBarImageColor3 = PURPLE
-        scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-        scroll.ScrollingEnabled = true
-        scroll.ScrollingDirection = Enum.ScrollingDirection.Y
-        scroll.Parent = parent
+    local AdminTab = CreateTab("Admin")
+    local VictimBox = Instance.new("TextBox")
+    VictimBox.Size = UDim2.new(0.9,0,0,32)
+    VictimBox.Position = UDim2.new(0.05,0,0.05,0)
+    VictimBox.BackgroundColor3 = Color3.fromRGB(40,30,55)
+    VictimBox.PlaceholderText = "اسم اللاعب..."
+    VictimBox.Text = ""
+    VictimBox.Parent = AdminTab
+    Instance.new("UICorner", VictimBox).CornerRadius = UDim.new(0,6)
 
-        local layout = Instance.new("UIListLayout", scroll)
-        layout.Padding = UDim.new(0, 8)
-        layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-        layout.SortOrder = Enum.SortOrder.LayoutOrder
-        layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-            scroll.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 10)
-        end)
-        return scroll
-    end
-
-    local AdminTab = CreateTab("Admin Commands")
-    local BangTab = CreateTab("Bang")
-    local NotificationsTab = CreateTab("الاشعارات")
-    local HousesTab = CreateTab("منازل")
-    AdminTab.Visible = true
-
-    local TopBar = Instance.new("Frame")
-    TopBar.Size = UDim2.new(1, 0, 0, 40)
-    TopBar.BackgroundTransparency = 1
-    TopBar.ZIndex = 5
-    TopBar.Parent = MainFrame
-
-    local Title = Instance.new("TextLabel")
-    Title.Size = UDim2.new(1, -100, 1, 0)
-    Title.Position = UDim2.new(0, 20, 0, 0)
-    Title.Text = "Zenix admin panel"
-    Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-    Title.Font = Enum.Font.GothamBold
-    Title.TextSize = 16
-    Title.BackgroundTransparency = 1
-    Title.TextXAlignment = Enum.TextXAlignment.Left
-    Title.ZIndex = 6
-    Title.Parent = TopBar
-
-    local CloseBtn = Instance.new("TextButton")
-    CloseBtn.Size = UDim2.new(0, 35, 0, 30)
-    CloseBtn.Position = UDim2.new(1, -45, 0, 5)
-    CloseBtn.Text = "X"
-    CloseBtn.BackgroundColor3 = PURPLE_DARK
-    CloseBtn.TextColor3 = Color3.new(1, 1, 1)
-    CloseBtn.ZIndex = 7
-    CloseBtn.Parent = TopBar
-    Instance.new("UICorner", CloseBtn)
-
-    local MinimizeBtn = Instance.new("TextButton")
-    MinimizeBtn.Size = UDim2.new(0, 35, 0, 30)
-    MinimizeBtn.Position = UDim2.new(1, -85, 0, 5)
-    MinimizeBtn.Text = "+"
-    MinimizeBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-    MinimizeBtn.TextColor3 = Color3.new(1, 1, 1)
-    MinimizeBtn.TextSize = 20
-    MinimizeBtn.ZIndex = 7
-    MinimizeBtn.Parent = TopBar
-    Instance.new("UICorner", MinimizeBtn)
-
-    local Resizer = Instance.new("TextButton")
-    Resizer.Size = UDim2.new(0, 30, 0, 30)
-    Resizer.Position = UDim2.new(1, -30, 1, -30)
-    Resizer.BackgroundTransparency = 1
-    Resizer.Text = "◢"
-    Resizer.TextColor3 = PURPLE
-    Resizer.TextSize = 25
-    Resizer.ZIndex = 10
-    Resizer.Parent = MainFrame
-
-    local isResizing = false
-    Resizer.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            isResizing = true
-            MainFrame.Draggable = false
-        end
-    end)
-    UserInputService.InputChanged:Connect(function(input)
-        if isResizing and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-            local framePos = MainFrame.AbsolutePosition
-            local newSize = UDim2.new(0, math.max(350, input.Position.X - framePos.X), 0, math.max(250, input.Position.Y - framePos.Y))
-            MainFrame.Size = newSize
-        end
-    end)
-    UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            isResizing = false
-            MainFrame.Draggable = true
-        end
-    end)
-
-    local uiVisible = true
-    local isMin = false
-    local isTweening = false
-    local originalMainSize = MainFrame.Size
-    local originalBtnSize = ToggleBtn.Size
-
-    ToggleBtn.MouseButton1Click:Connect(function()
-        if isTweening then return end
-        isTweening = true
-        uiVisible = not uiVisible
-        TweenService:Create(ToggleBtn, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-            Size = UDim2.new(0, originalBtnSize.X.Offset - 6, 0, originalBtnSize.Y.Offset - 6)
-        }):Play()
-        task.wait(0.1)
-        TweenService:Create(ToggleBtn, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-            Size = originalBtnSize
-        }):Play()
-        if uiVisible then
-            MainFrame.Visible = true
-            MainFrame.Size = UDim2.new(0, 0, 0, 0)
-            MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
-            TweenService:Create(MainFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-                Size = isMin and UDim2.new(0, originalMainSize.X.Offset, 0, 40) or originalMainSize,
-                Position = isMin and UDim2.new(0.5, -originalMainSize.X.Offset/2, 0.5, -20) or UDim2.new(0.5, -originalMainSize.X.Offset/2, 0.5, -originalMainSize.Y.Offset/2)
-            }):Play()
-            task.wait(0.3)
-            isTweening = false
-        else
-            TweenService:Create(MainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-                Size = UDim2.new(0, 0, 0, 0), Position = UDim2.new(0.5, 0, 0.5, 0)
-            }):Play()
-            task.wait(0.25)
-            MainFrame.Visible = false
-            isTweening = false
-        end
-    end)
-
-    MinimizeBtn.MouseButton1Click:Connect(function()
-        if isTweening then return end
-        isTweening = true
-        isMin = not isMin
-        if isMin then
-            originalMainSize = MainFrame.Size
-            MinimizeBtn.Text = "-"
-            Resizer.Visible = false
-            TweenService:Create(MainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-                Size = UDim2.new(0, originalMainSize.X.Offset, 0, 40),
-                Position = UDim2.new(0.5, -originalMainSize.X.Offset/2, 0.5, -20)
-            }):Play()
-            task.wait(0.25)
-            isTweening = false
-        else
-            MinimizeBtn.Text = "+"
-            TweenService:Create(MainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-                Size = originalMainSize,
-                Position = UDim2.new(0.5, -originalMainSize.X.Offset/2, 0.5, -originalMainSize.Y.Offset/2)
-            }):Play()
-            task.wait(0.25)
-            Resizer.Visible = true
-            isTweening = false
-        end
-    end)
-
-    CloseBtn.MouseButton1Click:Connect(function() ScreenGui:Destroy() end)
-
-    local function createStyledButton(parent, text, callback)
+    local function MakeButton(text, cmd)
         local btn = Instance.new("TextButton")
-        btn.Size = UDim2.new(0.9, 0, 0, 30)
-        btn.BackgroundTransparency = 0.8
-        btn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+        btn.Size = UDim2.new(0.9,0,0,30)
+        btn.BackgroundColor3 = Color3.fromRGB(30,20,50)
         btn.Text = text
-        btn.TextColor3 = Color3.fromRGB(180, 180, 180)
-        btn.Font = Enum.Font.GothamBold
-        btn.TextSize = 12
-        btn.BorderSizePixel = 0
-        btn.Parent = parent
-        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
-        local btnStroke = Instance.new("UIStroke", btn)
-        btnStroke.Thickness = 2
-        btnStroke.Color = Color3.new(1, 1, 1)
-        btnStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-        local btnGrad = Instance.new("UIGradient")
-        btnGrad.Color = ColorSequence.new({
-            ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 0, 0)),
-            ColorSequenceKeypoint.new(0.5, PURPLE),
-            ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 0, 0))
-        })
-        btnGrad.Parent = btnStroke
-        GradientLoop(btnGrad)
-        btn.MouseButton1Click:Connect(callback)
+        btn.TextColor3 = Color3.new(1,1,1)
+        btn.Parent = AdminTab
+        Instance.new("UICorner", btn).CornerRadius = UDim.new(0,6)
+        btn.MouseButton1Click:Connect(function()
+            local p = FindPlayer(VictimBox.Text)
+            if p then SendCommandAPI(cmd, p.Name, nil) end
+        end)
         return btn
     end
 
-    local function createStyledTextBox(parent, placeholder)
-        local box = Instance.new("TextBox")
-        box.Size = UDim2.new(0.95, 0, 0, 32)
-        box.BackgroundColor3 = Color3.fromRGB(40, 30, 55)
-        box.BackgroundTransparency = 0.2
-        box.BorderSizePixel = 0
-        box.PlaceholderText = placeholder or ""
-        box.PlaceholderColor3 = Color3.fromRGB(200, 170, 255)
-        box.Text = ""
-        box.TextColor3 = Color3.fromRGB(220, 200, 255)
-        box.Font = Enum.Font.GothamMedium
-        box.TextSize = 14
-        box.ClearTextOnFocus = false
-        box.Parent = parent
-        Instance.new("UICorner", box).CornerRadius = UDim.new(0, 6)
-        return box
-    end
-
-    local AdminScroll = MakeScrollPage(AdminTab)
-    local VictimBox = createStyledTextBox(AdminScroll, "اكتب اسم الضحية هنا...")
-
-    local buttonData = {
-        {"/Goto (أنا)", "goto"},
-        {"/Kill", "kill"},
-        {"/LoopKill", "loopkill"},
-        {"/Kick", "kick"},
-        {"/Freeze", "freeze"},
-        {"/FreezeCam", "freezecam"},
-        {"/CamDrop", "camdrop"},
-        {"/CrazyCam", "crazycam"},
-        {"/Bring", "bring"},
-        {"/Fling", "fling"},
-        {"/Sky", "sky"},
-        {"/Under", "underground"},
-        {"/SkyStop", "stopsky"},
-        {"/Jail", "jail"},
-        {"/TPRand", "tprand"},
-        {"/Spin", "spin"},
-        {"/Sit", "sit"},
-        {"/LoopSit", "loopsit"},
-        {"/Fire", "fire"},
-        {"/Blind", "blind"},
-        {"/LegBk", "legback"},
-        {"/LegFc", "legface"},
-        {"/WalkTo", "walkto"},
-        {"/AutoJmp", "autojump"},
-        {"/InfJmp", "infjump"},
-        {"/SpdAll", "speedall"},
-        {"/JmpAll", "jumpall"},
-        {"/FlingZ", "flingz"}
-    }
-
-    for _, data in ipairs(buttonData) do
-        local cmdName = data[2]
-        createStyledButton(AdminScroll, data[1], function()
-            local p = FindPlayer(VictimBox.Text)
-            if not p or not p.Parent then return end
-            if cmdName == "goto" then
-                if p.Character and LocalPlayer.Character then
-                    local vhrp = p.Character:FindFirstChild("HumanoidRootPart")
-                    local myhrp = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-                    if vhrp and myhrp then
-                        myhrp.CFrame = vhrp.CFrame + Vector3.new(0, 2, 0)
-                    end
-                end
-            else
-                SendCommandAPI(cmdName, p.Name, nil)
-            end
-        end)
-    end
-
-    local BangHeader = Instance.new("Frame")
-    BangHeader.Size = UDim2.new(1, 0, 0, 90)
-    BangHeader.BackgroundTransparency = 1
-    BangHeader.BorderSizePixel = 0
-    BangHeader.Parent = BangTab
-
-    local BangVictimBox = createStyledTextBox(BangHeader, "الضحية الأولى (المنفذ)...")
-    BangVictimBox.Position = UDim2.new(0.025, 0, 0, 4)
-    local BangTargetBox = createStyledTextBox(BangHeader, "الضحية الثانية (الهدف)...")
-    BangTargetBox.Position = UDim2.new(0.025, 0, 0, 44)
-
-    local BangScroll = Instance.new("ScrollingFrame")
-    BangScroll.Size = UDim2.new(1, 0, 1, -95)
-    BangScroll.Position = UDim2.new(0, 0, 0, 95)
-    BangScroll.BackgroundTransparency = 1
-    BangScroll.ScrollBarThickness = 6
-    BangScroll.ScrollBarImageColor3 = PURPLE
-    BangScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-    BangScroll.ScrollingEnabled = true
-    BangScroll.ScrollingDirection = Enum.ScrollingDirection.Y
-    BangScroll.Parent = BangTab
-
-    local BangLayout = Instance.new("UIListLayout", BangScroll)
-    BangLayout.Padding = UDim.new(0, 6)
-    BangLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-    BangLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    BangLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        BangScroll.CanvasSize = UDim2.new(0, 0, 0, BangLayout.AbsoluteContentSize.Y + 10)
-    end)
-
-    local bangButtons = {
-        {"Back Bang", "bangback", true},
-        {"Face Sit", "bangface", true},
-        {"Combine", "bangcomb", true},
-        {"V2 Body", "bangv2body", true},
-        {"V2 Face", "bangv2face", true},
-        {"Stop All Bangs", "bangstopall", false}
-    }
-
-    for _, data in ipairs(bangButtons) do
-        local cmd = data[2]
-        local needTarget = data[3]
-        local btn = createStyledButton(BangScroll, data[1], function()
-            local p1 = FindPlayer(BangVictimBox.Text)
-            if not p1 or GetDeveloperByPlayer(p1) then return end
-            if needTarget then
-                local p2 = FindPlayer(BangTargetBox.Text)
-                if p2 and not GetDeveloperByPlayer(p2) then
-                    SendCommandAPI(cmd, p1.Name, p2.Name)
-                end
-            else
-                SendCommandAPI(cmd, p1.Name, nil)
-            end
-        end)
-        btn.Size = UDim2.new(0.9, 0, 0, 35)
-    end
-
-    local NotfHeader = Instance.new("Frame")
-    NotfHeader.Size = UDim2.new(1, 0, 0, 130)
-    NotfHeader.BackgroundTransparency = 1
-    NotfHeader.Parent = NotificationsTab
-
-    local NotfVictimBox = createStyledTextBox(NotfHeader, "اسم الضحية (يجب أن يكون مفعل السكربت)...")
-    NotfVictimBox.Position = UDim2.new(0.025, 0, 0, 4)
-
-    local NotfMsgBox = createStyledTextBox(NotfHeader, "اكتب الرسالة هنا (يدعم كل اللغات)...")
-    NotfMsgBox.Position = UDim2.new(0.025, 0, 0, 44)
-    NotfMsgBox.Size = UDim2.new(0.95, 0, 0, 80)
-    NotfMsgBox.MultiLine = true
-    NotfMsgBox.TextWrapped = true
-
-    local NotfScroll = Instance.new("ScrollingFrame")
-    NotfScroll.Size = UDim2.new(1, 0, 1, -135)
-    NotfScroll.Position = UDim2.new(0, 0, 0, 135)
-    NotfScroll.BackgroundTransparency = 1
-    NotfScroll.ScrollBarThickness = 6
-    NotfScroll.ScrollBarImageColor3 = PURPLE
-    NotfScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-    NotfScroll.ScrollingEnabled = true
-    NotfScroll.Parent = NotificationsTab
-
-    local NotfLayout = Instance.new("UIListLayout", NotfScroll)
-    NotfLayout.Padding = UDim.new(0, 6)
-    NotfLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-    NotfLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    NotfLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        NotfScroll.CanvasSize = UDim2.new(0, 0, 0, NotfLayout.AbsoluteContentSize.Y + 10)
-    end)
-
-    createStyledButton(NotfScroll, "ارسال الاشعارات", function()
-        local p = FindPlayer(NotfVictimBox.Text)
-        if p and NotfMsgBox.Text and NotfMsgBox.Text ~= "" then
-            SendCommandAPI("notf", p.Name, NotfMsgBox.Text)
-        end
-    end)
-    createStyledButton(NotfScroll, "ايقاف الاشعارات (notfStop)", function()
-        local p = FindPlayer(NotfVictimBox.Text)
-        if p then SendCommandAPI("notfstop", p.Name, nil) end
-    end)
-
-    local HouseHeader = Instance.new("Frame")
-    HouseHeader.Size = UDim2.new(1, 0, 0, 42)
-    HouseHeader.BackgroundTransparency = 1
-    HouseHeader.Parent = HousesTab
-
-    local HouseVictimBox = createStyledTextBox(HouseHeader, "اسم الضحية (لاعب أو مطور)...")
-    HouseVictimBox.Position = UDim2.new(0.025, 0, 0, 4)
-
-    local HouseScroll = Instance.new("ScrollingFrame")
-    HouseScroll.Size = UDim2.new(1, 0, 1, -48)
-    HouseScroll.Position = UDim2.new(0, 0, 0, 48)
-    HouseScroll.BackgroundTransparency = 1
-    HouseScroll.ScrollBarThickness = 6
-    HouseScroll.ScrollBarImageColor3 = PURPLE
-    HouseScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-    HouseScroll.ScrollingEnabled = true
-    HouseScroll.Parent = HousesTab
-
-    local HouseLayout = Instance.new("UIListLayout", HouseScroll)
-    HouseLayout.Padding = UDim.new(0, 6)
-    HouseLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-    HouseLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    HouseLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        HouseScroll.CanvasSize = UDim2.new(0, 0, 0, HouseLayout.AbsoluteContentSize.Y + 10)
-    end)
-
-    local housesData = {
-        {"Castle", "castle"},
-        {"Blox Fruit", "bloxfruit"},
-        {"MM2", "mm2"},
-        {"سوق", "market"},
-        {"حديقة", "garden"},
-        {"بيت", "house"},
-        {"Dark Garden", "darkgarden"}
-    }
-    for _, data in ipairs(housesData) do
-        local cmd = data[2]
-        local btn = createStyledButton(HouseScroll, data[1], function()
-            local p = FindPlayer(HouseVictimBox.Text)
-            if p then SendCommandAPI(cmd, p.Name, nil) end
-        end)
-        btn.Size = UDim2.new(0.9, 0, 0, 35)
-    end
-
-    ScreenGui.Destroying:Connect(function()
-        for _, p in ipairs(Players:GetPlayers()) do
-            if BangState[p.Name] then StopBangFor(p) end
-            if CamState[p.Name] then StopCam(p.Name) end
-        end
-    end)
-
-    task.spawn(function()
-        while ScreenGui and ScreenGui.Parent do
-            MainFrame.BackgroundTransparency = 0.15 + 0.05 * math.sin(tick() * 2)
-            task.wait(0.1)
-        end
-    end)
+    MakeButton("قتل", "kill").Position = UDim2.new(0.05,0,0.15,0)
+    MakeButton("تجميد", "freeze").Position = UDim2.new(0.05,0,0.22,0)
+    MakeButton("سجن", "jail").Position = UDim2.new(0.05,0,0.29,0)
+    MakeButton("نقل إليّ", "bring").Position = UDim2.new(0.05,0,0.36,0)
+    MakeButton("إطلاق نار", "fire").Position = UDim2.new(0.05,0,0.43,0)
+    MakeButton("عمياء", "blind").Position = UDim2.new(0.05,0,0.50,0)
+    MakeButton("قلعة", "castle").Position = UDim2.new(0.05,0,0.57,0)
+    MakeButton("طرد", "kick").Position = UDim2.new(0.05,0,0.64,0)
 end
