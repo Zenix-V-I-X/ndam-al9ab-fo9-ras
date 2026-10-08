@@ -12,6 +12,7 @@ local RankData = {
     },
     Admins = {
         ["youssef3423samyt"] = true,
+        ["saraaaal279"] = true,
     },
     Special = {
         ["m7mad9113"] = true,
@@ -23,7 +24,6 @@ local RankData = {
     ImportantMembers = {
         ["Rohim38206"] = true,
         ["im_rawab"] = true,
-        ["saraaaal279"] = true,
         ["rohim38206"] = true,
         ["hsush527"] = true,
         ["srufguyifi"] = true,
