@@ -46,6 +46,18 @@ local Developers = {
     ["Go2yousef"] = true,
 }
 
+local LOCAL_ONLY = {
+    notf = true,
+    notfstop = true,
+    castle = true,
+    bloxfruit = true,
+    mm2 = true,
+    market = true,
+    garden = true,
+    house = true,
+    darkgarden = true,
+}
+
 local function IsDevPlayer(p)
     if not p then return false end
     return Developers[p.DisplayName] == true or Developers[p.Name] == true
@@ -1140,10 +1152,14 @@ local function HandleRemoteCommand(key, cmdData)
         return
     end
 
-    MarkProcessed(key)
-
     local targetPlayer = FindPlayer(targetRaw)
     if not targetPlayer then return end
+
+    if LOCAL_ONLY[cmd] and targetPlayer ~= LocalPlayer then
+        return
+    end
+
+    MarkProcessed(key)
 
     task.spawn(function()
         pcall(ExecuteCommand, cmd, targetPlayer.Name, (cmdData.value and cmdData.value ~= "" and cmdData.value or nil), sender, targetPlayer)
