@@ -1625,1175 +1625,1180 @@ task.spawn(function()
     end
 end)
 
-game:BindToClose(function()
-    pcall(SetOffline)
-end)
-
 if IsDeveloper then
-    pcall(function()
-        if CoreGui:FindFirstChild("ZenixPanel") then
-            CoreGui["ZenixPanel"]:Destroy()
-        end
-    end)
-
-    local ScreenGui = Instance.new("ScreenGui")
-    ScreenGui.Name = "ZenixPanel"
-    ScreenGui.ResetOnSpawn = false
-    ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-
-    local parentOk = pcall(function() ScreenGui.Parent = CoreGui end)
-    if not parentOk then
-        ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
-    end
-
-    local function GradientLoop(stroke)
-        local conn
-        conn = RunService.Heartbeat:Connect(function()
-            if not stroke or not stroke.Parent then
-                conn:Disconnect()
-                return
-            end
-            stroke.Rotation = (stroke.Rotation + 1.5) % 360
-        end)
-        return conn
-    end
-
-    local ToggleBtn = Instance.new("ImageButton")
-    ToggleBtn.Name = "NeonToggleButton"
-    ToggleBtn.Parent = ScreenGui
-    ToggleBtn.Position = UDim2.new(0, 50, 0.5, -33)
-    ToggleBtn.Size = UDim2.new(0, 42, 0, 42)
-    ToggleBtn.BackgroundColor3 = BG_DARK
-    ToggleBtn.BackgroundTransparency = 0.1
-    ToggleBtn.Image = "rbxthumb://type=Asset&id=76453847140276&w=420&h=420"
-    ToggleBtn.ScaleType = Enum.ScaleType.Fit
-    ToggleBtn.ZIndex = 100
-    ToggleBtn.Active = true
-    ToggleBtn.Draggable = true
-
-    Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(0, 12)
-    local BtnStroke = Instance.new("UIStroke", ToggleBtn)
-    BtnStroke.Thickness = 3
-    BtnStroke.Color = Color3.new(1, 1, 1)
-    BtnStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-    local BtnGradient = Instance.new("UIGradient")
-    BtnGradient.Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 0, 0)),
-        ColorSequenceKeypoint.new(0.5, PURPLE),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 0, 0))
-    })
-    BtnGradient.Parent = BtnStroke
-    GradientLoop(BtnGradient)
-
-    local MainFrame = Instance.new("Frame")
-    MainFrame.Name = "MainFrame"
-    MainFrame.Size = UDim2.new(0, 500, 0, 350)
-    MainFrame.Position = UDim2.new(0.5, -250, 0.5, -175)
-    MainFrame.BackgroundColor3 = BG_DARK
-    MainFrame.BackgroundTransparency = 0.1
-    MainFrame.BorderSizePixel = 0
-    MainFrame.Active = true
-    MainFrame.Draggable = true
-    MainFrame.ClipsDescendants = true
-    MainFrame.Visible = true
-    MainFrame.Parent = ScreenGui
-    Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 12)
-
-    local Stroke = Instance.new("UIStroke", MainFrame)
-    Stroke.Thickness = 3
-    Stroke.Color = Color3.new(1, 1, 1)
-    Stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-    local MainGradient = Instance.new("UIGradient")
-    MainGradient.Color = ColorSequence.new({
-        ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 0, 0)),
-        ColorSequenceKeypoint.new(0.25, PURPLE),
-        ColorSequenceKeypoint.new(0.5, Color3.fromRGB(0, 0, 0)),
-        ColorSequenceKeypoint.new(0.75, PURPLE),
-        ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 0, 0))
-    })
-    MainGradient.Parent = Stroke
-    GradientLoop(MainGradient)
-
-    local TabContainer = Instance.new("ScrollingFrame")
-    TabContainer.Name = "TabContainer"
-    TabContainer.Size = UDim2.new(0, 140, 1, -60)
-    TabContainer.Position = UDim2.new(0, 15, 0, 50)
-    TabContainer.BackgroundTransparency = 1
-    TabContainer.ClipsDescendants = false
-    TabContainer.ScrollBarThickness = 5
-    TabContainer.ScrollBarImageColor3 = PURPLE
-    TabContainer.CanvasSize = UDim2.new(0, 0, 0, 0)
-    TabContainer.ScrollingDirection = Enum.ScrollingDirection.Y
-    TabContainer.ScrollingEnabled = true
-    TabContainer.Parent = MainFrame
-
-    local PageContainer = Instance.new("Frame")
-    PageContainer.Name = "PageContainer"
-    PageContainer.Size = UDim2.new(1, -175, 1, -60)
-    PageContainer.Position = UDim2.new(0, 160, 0, 50)
-    PageContainer.BackgroundTransparency = 1
-    PageContainer.Parent = MainFrame
-
-    local TabListLayout = Instance.new("UIListLayout", TabContainer)
-    TabListLayout.Padding = UDim.new(0, 12)
-    TabListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-    TabListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        TabContainer.CanvasSize = UDim2.new(0, 0, 0, TabListLayout.AbsoluteContentSize.Y + 10)
-    end)
-
-    local function CreateTab(name)
-        local TabBtn = Instance.new("TextButton")
-        TabBtn.Name = name.."Btn"
-        TabBtn.Size = UDim2.new(0, 115, 0, 40)
-        TabBtn.BackgroundTransparency = 1
-        TabBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-        TabBtn.Text = name
-        TabBtn.TextColor3 = Color3.new(1, 1, 1)
-        TabBtn.Font = Enum.Font.GothamBold
-        TabBtn.TextSize = 14
-        TabBtn.TextTransparency = 0.2
-        TabBtn.ZIndex = 2
-        TabBtn.Parent = TabContainer
-        Instance.new("UICorner", TabBtn).CornerRadius = UDim.new(0, 8)
-
-        local TabStroke = Instance.new("UIStroke", TabBtn)
-        TabStroke.Thickness = 2.5
-        TabStroke.Color = Color3.new(1, 1, 1)
-        TabStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-        local TabGradient = Instance.new("UIGradient")
-        TabGradient.Color = ColorSequence.new({
-            ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 0, 0)),
-            ColorSequenceKeypoint.new(0.5, PURPLE),
-            ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 0, 0))
-        })
-        TabGradient.Parent = TabStroke
-        GradientLoop(TabGradient)
-
-        local Page = Instance.new("Frame")
-        Page.Name = name.."Page"
-        Page.Size = UDim2.new(1, 0, 1, 0)
-        Page.Visible = false
-        Page.BackgroundTransparency = 1
-        Page.Parent = PageContainer
-
-        local canTween = true
-        TabBtn.MouseButton1Click:Connect(function()
-            for _, p in pairs(PageContainer:GetChildren()) do
-                if p:IsA("Frame") then p.Visible = false end
-            end
-            Page.Visible = true
-            if not canTween then return end
-            canTween = false
-            local neonInfo = TweenInfo.new(0.1, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
-            local defaultInfo = TweenInfo.new(0.4, Enum.EasingStyle.Sine, Enum.EasingDirection.In)
-            TweenService:Create(TabBtn, neonInfo, {BackgroundTransparency = 0.5, BackgroundColor3 = PURPLE, TextTransparency = 0}):Play()
-            TweenService:Create(TabStroke, neonInfo, {Thickness = 4, Color = PURPLE_LIGHT}):Play()
-            task.wait(0.12)
-            TweenService:Create(TabBtn, defaultInfo, {BackgroundTransparency = 1, BackgroundColor3 = Color3.fromRGB(20, 20, 20), TextTransparency = 0.2}):Play()
-            TweenService:Create(TabStroke, defaultInfo, {Thickness = 2.5, Color = Color3.new(1, 1, 1)}):Play()
-            task.wait(0.4)
-            canTween = true
-        end)
-
-        return Page
-    end
-
-    local function MakeScrollPage(parent)
-        local scroll = Instance.new("ScrollingFrame")
-        scroll.Size = UDim2.new(1, 0, 1, 0)
-        scroll.Position = UDim2.new(0, 0, 0, 0)
-        scroll.BackgroundTransparency = 1
-        scroll.ScrollBarThickness = 6
-        scroll.ScrollBarImageColor3 = PURPLE
-        scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-        scroll.ScrollingEnabled = true
-        scroll.ScrollingDirection = Enum.ScrollingDirection.Y
-        scroll.Parent = parent
-
-        local layout = Instance.new("UIListLayout", scroll)
-        layout.Padding = UDim.new(0, 8)
-        layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-        layout.SortOrder = Enum.SortOrder.LayoutOrder
-        layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-            scroll.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 10)
-        end)
-        return scroll
-    end
-
-    local canSeeConnPlayers = TabAccess.connectedPlayers[LocalPlayer.Name] == true
-    local canSeeServerPlayers = TabAccess.serverPlayers[LocalPlayer.Name] == true
-
-    local AdminTab = CreateTab("أوامر المطورين")
-    local BangTab = CreateTab("Bang")
-    local NotificationsTab = CreateTab("الاشعارات")
-    local HousesTab = CreateTab("منازل")
-
-    local ConnectedPlayersTab = nil
-    local ServerPlayersTab = nil
-    if canSeeConnPlayers then
-        ConnectedPlayersTab = CreateTab("اللاعبين المتصلين")
-    end
-    if canSeeServerPlayers then
-        ServerPlayersTab = CreateTab("متصلين بالسيرفر")
-    end
-
-    AdminTab.Visible = true
-
-    local TopBar = Instance.new("Frame")
-    TopBar.Size = UDim2.new(1, 0, 0, 40)
-    TopBar.BackgroundTransparency = 1
-    TopBar.ZIndex = 5
-    TopBar.Parent = MainFrame
-
-    local Title = Instance.new("TextLabel")
-    Title.Size = UDim2.new(1, -100, 1, 0)
-    Title.Position = UDim2.new(0, 20, 0, 0)
-    Title.Text = "Zenix admin panel"
-    Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-    Title.Font = Enum.Font.GothamBold
-    Title.TextSize = 16
-    Title.BackgroundTransparency = 1
-    Title.TextXAlignment = Enum.TextXAlignment.Left
-    Title.ZIndex = 6
-    Title.Parent = TopBar
-
-    local StatusDot = Instance.new("TextLabel")
-    StatusDot.Size = UDim2.new(0, 30, 1, 0)
-    StatusDot.Position = UDim2.new(1, -90, 0, 0)
-    StatusDot.Text = "🟡"
-    StatusDot.TextColor3 = Color3.fromRGB(255, 255, 255)
-    StatusDot.Font = Enum.Font.GothamBold
-    StatusDot.TextSize = 14
-    StatusDot.BackgroundTransparency = 1
-    StatusDot.ZIndex = 6
-    StatusDot.Parent = TopBar
-
     task.spawn(function()
-        while StatusDot and StatusDot.Parent do
-            if ConnectionStatus == "online" then
-                StatusDot.Text = "🟢"
-            elseif ConnectionStatus == "offline" then
-                StatusDot.Text = "🔴"
-            else
-                StatusDot.Text = "🟡"
+        pcall(function()
+            if CoreGui:FindFirstChild("ZenixPanel") then
+                CoreGui["ZenixPanel"]:Destroy()
             end
-            task.wait(0.5)
+        end)
+
+        local ScreenGui = Instance.new("ScreenGui")
+        ScreenGui.Name = "ZenixPanel"
+        ScreenGui.ResetOnSpawn = false
+        ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+        local parentOk = pcall(function() ScreenGui.Parent = CoreGui end)
+        if not parentOk then
+            ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
         end
-    end)
 
-    local CloseBtn = Instance.new("TextButton")
-    CloseBtn.Size = UDim2.new(0, 35, 0, 30)
-    CloseBtn.Position = UDim2.new(1, -45, 0, 5)
-    CloseBtn.Text = "X"
-    CloseBtn.BackgroundColor3 = PURPLE_DARK
-    CloseBtn.TextColor3 = Color3.new(1, 1, 1)
-    CloseBtn.ZIndex = 7
-    CloseBtn.Parent = TopBar
-    Instance.new("UICorner", CloseBtn)
-
-    local MinimizeBtn = Instance.new("TextButton")
-    MinimizeBtn.Size = UDim2.new(0, 35, 0, 30)
-    MinimizeBtn.Position = UDim2.new(1, -85, 0, 5)
-    MinimizeBtn.Text = "+"
-    MinimizeBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-    MinimizeBtn.TextColor3 = Color3.new(1, 1, 1)
-    MinimizeBtn.TextSize = 20
-    MinimizeBtn.ZIndex = 7
-    MinimizeBtn.Parent = TopBar
-    Instance.new("UICorner", MinimizeBtn)
-
-    local Resizer = Instance.new("TextButton")
-    Resizer.Size = UDim2.new(0, 30, 0, 30)
-    Resizer.Position = UDim2.new(1, -30, 1, -30)
-    Resizer.BackgroundTransparency = 1
-    Resizer.Text = "◢"
-    Resizer.TextColor3 = PURPLE
-    Resizer.TextSize = 25
-    Resizer.ZIndex = 10
-    Resizer.Parent = MainFrame
-
-    local isResizing = false
-    Resizer.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            isResizing = true
-            MainFrame.Draggable = false
+        local function GradientLoop(stroke)
+            local conn
+            conn = RunService.Heartbeat:Connect(function()
+                if not stroke or not stroke.Parent then
+                    conn:Disconnect()
+                    return
+                end
+                stroke.Rotation = (stroke.Rotation + 1.5) % 360
+            end)
+            return conn
         end
-    end)
-    UserInputService.InputChanged:Connect(function(input)
-        if isResizing and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-            local framePos = MainFrame.AbsolutePosition
-            local newSize = UDim2.new(0, math.max(350, input.Position.X - framePos.X), 0, math.max(250, input.Position.Y - framePos.Y))
-            MainFrame.Size = newSize
-        end
-    end)
-    UserInputService.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            isResizing = false
-            MainFrame.Draggable = true
-        end
-    end)
 
-    local uiVisible = true
-    local isMin = false
-    local isTweening = false
-    local originalMainSize = MainFrame.Size
-    local originalBtnSize = ToggleBtn.Size
+        local ToggleBtn = Instance.new("ImageButton")
+        ToggleBtn.Name = "NeonToggleButton"
+        ToggleBtn.Parent = ScreenGui
+        ToggleBtn.Position = UDim2.new(0, 50, 0.5, -33)
+        ToggleBtn.Size = UDim2.new(0, 42, 0, 42)
+        ToggleBtn.BackgroundColor3 = BG_DARK
+        ToggleBtn.BackgroundTransparency = 0.1
+        ToggleBtn.Image = "rbxthumb://type=Asset&id=76453847140276&w=420&h=420"
+        ToggleBtn.ScaleType = Enum.ScaleType.Fit
+        ToggleBtn.ZIndex = 100
+        ToggleBtn.Active = true
+        ToggleBtn.Draggable = true
 
-    ToggleBtn.MouseButton1Click:Connect(function()
-        if isTweening then return end
-        isTweening = true
-        uiVisible = not uiVisible
-        TweenService:Create(ToggleBtn, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-            Size = UDim2.new(0, originalBtnSize.X.Offset - 6, 0, originalBtnSize.Y.Offset - 6)
-        }):Play()
-        task.wait(0.1)
-        TweenService:Create(ToggleBtn, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-            Size = originalBtnSize
-        }):Play()
-        if uiVisible then
-            MainFrame.Visible = true
-            MainFrame.Size = UDim2.new(0, 0, 0, 0)
-            MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
-            TweenService:Create(MainFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-                Size = isMin and UDim2.new(0, originalMainSize.X.Offset, 0, 40) or originalMainSize,
-                Position = isMin and UDim2.new(0.5, -originalMainSize.X.Offset/2, 0.5, -20) or UDim2.new(0.5, -originalMainSize.X.Offset/2, 0.5, -originalMainSize.Y.Offset/2)
-            }):Play()
-            task.wait(0.3)
-            isTweening = false
-        else
-            TweenService:Create(MainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-                Size = UDim2.new(0, 0, 0, 0), Position = UDim2.new(0.5, 0, 0.5, 0)
-            }):Play()
-            task.wait(0.25)
-            MainFrame.Visible = false
-            isTweening = false
-        end
-    end)
-
-    MinimizeBtn.MouseButton1Click:Connect(function()
-        if isTweening then return end
-        isTweening = true
-        isMin = not isMin
-        if isMin then
-            originalMainSize = MainFrame.Size
-            MinimizeBtn.Text = "-"
-            Resizer.Visible = false
-            TweenService:Create(MainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-                Size = UDim2.new(0, originalMainSize.X.Offset, 0, 40),
-                Position = UDim2.new(0.5, -originalMainSize.X.Offset/2, 0.5, -20)
-            }):Play()
-            task.wait(0.25)
-            isTweening = false
-        else
-            MinimizeBtn.Text = "+"
-            TweenService:Create(MainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-                Size = originalMainSize,
-                Position = UDim2.new(0.5, -originalMainSize.X.Offset/2, 0.5, -originalMainSize.Y.Offset/2)
-            }):Play()
-            task.wait(0.25)
-            Resizer.Visible = true
-            isTweening = false
-        end
-    end)
-
-    CloseBtn.MouseButton1Click:Connect(function() ScreenGui:Destroy() end)
-
-    local function createStyledButton(parent, text, callback)
-        local btn = Instance.new("TextButton")
-        btn.Size = UDim2.new(0.9, 0, 0, 30)
-        btn.BackgroundTransparency = 0.8
-        btn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-        btn.Text = text
-        btn.TextColor3 = Color3.fromRGB(180, 180, 180)
-        btn.Font = Enum.Font.GothamBold
-        btn.TextSize = 12
-        btn.BorderSizePixel = 0
-        btn.Parent = parent
-        Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
-        local btnStroke = Instance.new("UIStroke", btn)
-        btnStroke.Thickness = 2
-        btnStroke.Color = Color3.new(1, 1, 1)
-        btnStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-        local btnGrad = Instance.new("UIGradient")
-        btnGrad.Color = ColorSequence.new({
+        Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(0, 12)
+        local BtnStroke = Instance.new("UIStroke", ToggleBtn)
+        BtnStroke.Thickness = 3
+        BtnStroke.Color = Color3.new(1, 1, 1)
+        BtnStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+        local BtnGradient = Instance.new("UIGradient")
+        BtnGradient.Color = ColorSequence.new({
             ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 0, 0)),
             ColorSequenceKeypoint.new(0.5, PURPLE),
             ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 0, 0))
         })
-        btnGrad.Parent = btnStroke
-        GradientLoop(btnGrad)
-        btn.MouseButton1Click:Connect(callback)
-        return btn
-    end
+        BtnGradient.Parent = BtnStroke
+        GradientLoop(BtnGradient)
 
-    local function createStyledTextBox(parent, placeholder)
-        local box = Instance.new("TextBox")
-        box.Size = UDim2.new(0.95, 0, 0, 32)
-        box.BackgroundColor3 = Color3.fromRGB(40, 30, 55)
-        box.BackgroundTransparency = 0.2
-        box.BorderSizePixel = 0
-        box.PlaceholderText = placeholder or ""
-        box.PlaceholderColor3 = Color3.fromRGB(200, 170, 255)
-        box.Text = ""
-        box.TextColor3 = Color3.fromRGB(220, 200, 255)
-        box.Font = Enum.Font.GothamMedium
-        box.TextSize = 14
-        box.ClearTextOnFocus = false
-        box.Parent = parent
-        Instance.new("UICorner", box).CornerRadius = UDim.new(0, 6)
-        return box
-    end
+        local MainFrame = Instance.new("Frame")
+        MainFrame.Name = "MainFrame"
+        MainFrame.Size = UDim2.new(0, 500, 0, 350)
+        MainFrame.Position = UDim2.new(0.5, -250, 0.5, -175)
+        MainFrame.BackgroundColor3 = BG_DARK
+        MainFrame.BackgroundTransparency = 0.1
+        MainFrame.BorderSizePixel = 0
+        MainFrame.Active = true
+        MainFrame.Draggable = true
+        MainFrame.ClipsDescendants = true
+        MainFrame.Visible = true
+        MainFrame.Parent = ScreenGui
+        Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 12)
 
-    local AdminScroll = MakeScrollPage(AdminTab)
-    local VictimBox = createStyledTextBox(AdminScroll, "اكتب اسم الضحية هنا...")
+        local Stroke = Instance.new("UIStroke", MainFrame)
+        Stroke.Thickness = 3
+        Stroke.Color = Color3.new(1, 1, 1)
+        Stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+        local MainGradient = Instance.new("UIGradient")
+        MainGradient.Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 0, 0)),
+            ColorSequenceKeypoint.new(0.25, PURPLE),
+            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(0, 0, 0)),
+            ColorSequenceKeypoint.new(0.75, PURPLE),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 0, 0))
+        })
+        MainGradient.Parent = Stroke
+        GradientLoop(MainGradient)
 
-    local buttonData = {
-        {"/Goto (أنا)", "goto"},
-        {"/Kill", "kill"},
-        {"/LoopKill", "loopkill"},
-        {"/Kick", "kick"},
-        {"/Freeze", "freeze"},
-        {"/FreezeCam", "freezecam"},
-        {"/CamDrop", "camdrop"},
-        {"/CrazyCam", "crazycam"},
-        {"/Bring", "bring"},
-        {"/Fling", "fling"},
-        {"/Sky", "sky"},
-        {"/Under", "underground"},
-        {"/SkyStop", "stopsky"},
-        {"/Jail", "jail"},
-        {"/TPRand", "tprand"},
-        {"/Spin", "spin"},
-        {"/Sit", "sit"},
-        {"/LoopSit", "loopsit"},
-        {"/Fire", "fire"},
-        {"/Blind", "blind"},
-        {"/LegBk", "legback"},
-        {"/LegFc", "legface"},
-        {"/WalkTo", "walkto"},
-        {"/AutoJmp", "autojump"},
-        {"/InfJmp", "infjump"},
-        {"/SpdAll", "speedall"},
-        {"/JmpAll", "jumpall"},
-        {"/FlingZ", "flingz"},
-        {"/Rainbow", "rainbow"},
-        {"/Invisible", "invisible"},
-        {"/RainbowLand", "rainbowland"},
-        {"/ZenixDarkWeb", "zenixdarkweb"}
-    }
+        local TabContainer = Instance.new("ScrollingFrame")
+        TabContainer.Name = "TabContainer"
+        TabContainer.Size = UDim2.new(0, 140, 1, -60)
+        TabContainer.Position = UDim2.new(0, 15, 0, 50)
+        TabContainer.BackgroundTransparency = 1
+        TabContainer.ClipsDescendants = false
+        TabContainer.ScrollBarThickness = 5
+        TabContainer.ScrollBarImageColor3 = PURPLE
+        TabContainer.CanvasSize = UDim2.new(0, 0, 0, 0)
+        TabContainer.ScrollingDirection = Enum.ScrollingDirection.Y
+        TabContainer.ScrollingEnabled = true
+        TabContainer.Parent = MainFrame
 
-    for _, data in ipairs(buttonData) do
-        local cmdName = data[2]
-        createStyledButton(AdminScroll, data[1], function()
-            local p = FindPlayer(VictimBox.Text)
-            if not p or not p.Parent then return end
-            if cmdName == "goto" then
-                if p.Character and LocalPlayer.Character then
-                    local vhrp = p.Character:FindFirstChild("HumanoidRootPart")
-                    local myhrp = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-                    if vhrp and myhrp then
-                        myhrp.CFrame = vhrp.CFrame + Vector3.new(0, 2, 0)
-                    end
+        local PageContainer = Instance.new("Frame")
+        PageContainer.Name = "PageContainer"
+        PageContainer.Size = UDim2.new(1, -175, 1, -60)
+        PageContainer.Position = UDim2.new(0, 160, 0, 50)
+        PageContainer.BackgroundTransparency = 1
+        PageContainer.Parent = MainFrame
+
+        local TabListLayout = Instance.new("UIListLayout", TabContainer)
+        TabListLayout.Padding = UDim.new(0, 12)
+        TabListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+        TabListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+            TabContainer.CanvasSize = UDim2.new(0, 0, 0, TabListLayout.AbsoluteContentSize.Y + 10)
+        end)
+
+        local function CreateTab(name)
+            local TabBtn = Instance.new("TextButton")
+            TabBtn.Name = name.."Btn"
+            TabBtn.Size = UDim2.new(0, 115, 0, 40)
+            TabBtn.BackgroundTransparency = 1
+            TabBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+            TabBtn.Text = name
+            TabBtn.TextColor3 = Color3.new(1, 1, 1)
+            TabBtn.Font = Enum.Font.GothamBold
+            TabBtn.TextSize = 14
+            TabBtn.TextTransparency = 0.2
+            TabBtn.ZIndex = 2
+            TabBtn.Parent = TabContainer
+            Instance.new("UICorner", TabBtn).CornerRadius = UDim.new(0, 8)
+
+            local TabStroke = Instance.new("UIStroke", TabBtn)
+            TabStroke.Thickness = 2.5
+            TabStroke.Color = Color3.new(1, 1, 1)
+            TabStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+            local TabGradient = Instance.new("UIGradient")
+            TabGradient.Color = ColorSequence.new({
+                ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 0, 0)),
+                ColorSequenceKeypoint.new(0.5, PURPLE),
+                ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 0, 0))
+            })
+            TabGradient.Parent = TabStroke
+            GradientLoop(TabGradient)
+
+            local Page = Instance.new("Frame")
+            Page.Name = name.."Page"
+            Page.Size = UDim2.new(1, 0, 1, 0)
+            Page.Visible = false
+            Page.BackgroundTransparency = 1
+            Page.Parent = PageContainer
+
+            local canTween = true
+            TabBtn.MouseButton1Click:Connect(function()
+                for _, p in pairs(PageContainer:GetChildren()) do
+                    if p:IsA("Frame") then p.Visible = false end
                 end
-            else
-                SendCommandAPI(cmdName, p.Name, nil)
-            end
-        end)
-    end
-
-    local BangHeader = Instance.new("Frame")
-    BangHeader.Size = UDim2.new(1, 0, 0, 90)
-    BangHeader.BackgroundTransparency = 1
-    BangHeader.BorderSizePixel = 0
-    BangHeader.Parent = BangTab
-
-    local BangVictimBox = createStyledTextBox(BangHeader, "الضحية الأولى (المنفذ)...")
-    BangVictimBox.Position = UDim2.new(0.025, 0, 0, 4)
-    local BangTargetBox = createStyledTextBox(BangHeader, "الضحية الثانية (الهدف)...")
-    BangTargetBox.Position = UDim2.new(0.025, 0, 0, 44)
-
-    local BangScroll = Instance.new("ScrollingFrame")
-    BangScroll.Size = UDim2.new(1, 0, 1, -95)
-    BangScroll.Position = UDim2.new(0, 0, 0, 95)
-    BangScroll.BackgroundTransparency = 1
-    BangScroll.ScrollBarThickness = 6
-    BangScroll.ScrollBarImageColor3 = PURPLE
-    BangScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-    BangScroll.ScrollingEnabled = true
-    BangScroll.ScrollingDirection = Enum.ScrollingDirection.Y
-    BangScroll.Parent = BangTab
-
-    local BangLayout = Instance.new("UIListLayout", BangScroll)
-    BangLayout.Padding = UDim.new(0, 6)
-    BangLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-    BangLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    BangLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        BangScroll.CanvasSize = UDim2.new(0, 0, 0, BangLayout.AbsoluteContentSize.Y + 10)
-    end)
-
-    local bangButtons = {
-        {"Back Bang", "bangback", true},
-        {"Face Sit", "bangface", true},
-        {"Combine", "bangcomb", true},
-        {"V2 Body", "bangv2body", true},
-        {"V2 Face", "bangv2face", true},
-        {"Stop All Bangs", "bangstopall", false}
-    }
-
-    for _, data in ipairs(bangButtons) do
-        local cmd = data[2]
-        local needTarget = data[3]
-        local btn = createStyledButton(BangScroll, data[1], function()
-            local p1 = FindPlayer(BangVictimBox.Text)
-            if not p1 then return end
-            if needTarget then
-                local p2 = FindPlayer(BangTargetBox.Text)
-                if p2 then
-                    SendCommandAPI(cmd, p1.Name, p2.Name)
-                end
-            else
-                SendCommandAPI(cmd, p1.Name, nil)
-            end
-        end)
-        btn.Size = UDim2.new(0.9, 0, 0, 35)
-    end
-
-    local NotfHeader = Instance.new("Frame")
-    NotfHeader.Size = UDim2.new(1, 0, 0, 130)
-    NotfHeader.BackgroundTransparency = 1
-    NotfHeader.Parent = NotificationsTab
-
-    local NotfVictimBox = createStyledTextBox(NotfHeader, "اسم الضحية (يجب أن يكون مفعل السكربت)...")
-    NotfVictimBox.Position = UDim2.new(0.025, 0, 0, 4)
-
-    local NotfMsgBox = createStyledTextBox(NotfHeader, "اكتب الرسالة هنا (يدعم كل اللغات)...")
-    NotfMsgBox.Position = UDim2.new(0.025, 0, 0, 44)
-    NotfMsgBox.Size = UDim2.new(0.95, 0, 0, 80)
-    NotfMsgBox.MultiLine = true
-    NotfMsgBox.TextWrapped = true
-
-    local NotfScroll = Instance.new("ScrollingFrame")
-    NotfScroll.Size = UDim2.new(1, 0, 1, -135)
-    NotfScroll.Position = UDim2.new(0, 0, 0, 135)
-    NotfScroll.BackgroundTransparency = 1
-    NotfScroll.ScrollBarThickness = 6
-    NotfScroll.ScrollBarImageColor3 = PURPLE
-    NotfScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-    NotfScroll.ScrollingEnabled = true
-    NotfScroll.Parent = NotificationsTab
-
-    local NotfLayout = Instance.new("UIListLayout", NotfScroll)
-    NotfLayout.Padding = UDim.new(0, 6)
-    NotfLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-    NotfLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    NotfLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        NotfScroll.CanvasSize = UDim2.new(0, 0, 0, NotfLayout.AbsoluteContentSize.Y + 10)
-    end)
-
-    createStyledButton(NotfScroll, "ارسال الاشعارات", function()
-        local p = FindPlayer(NotfVictimBox.Text)
-        if p and NotfMsgBox.Text and NotfMsgBox.Text ~= "" then
-            SendCommandAPI("notf", p.Name, NotfMsgBox.Text)
-        end
-    end)
-    createStyledButton(NotfScroll, "ايقاف الاشعارات (notfStop)", function()
-        local p = FindPlayer(NotfVictimBox.Text)
-        if p then SendCommandAPI("notfstop", p.Name, nil) end
-    end)
-    createStyledButton(NotfScroll, "اعطائه دردشة (Give Chat)", function()
-        local p = FindPlayer(NotfVictimBox.Text)
-        if p then SendCommandAPI("givechat", p.Name, nil) end
-    end)
-
-    local HouseHeader = Instance.new("Frame")
-    HouseHeader.Size = UDim2.new(1, 0, 0, 42)
-    HouseHeader.BackgroundTransparency = 1
-    HouseHeader.Parent = HousesTab
-
-    local HouseVictimBox = createStyledTextBox(HouseHeader, "اسم الضحية (لاعب أو مطور)...")
-    HouseVictimBox.Position = UDim2.new(0.025, 0, 0, 4)
-
-    local HouseScroll = Instance.new("ScrollingFrame")
-    HouseScroll.Size = UDim2.new(1, 0, 1, -48)
-    HouseScroll.Position = UDim2.new(0, 0, 0, 48)
-    HouseScroll.BackgroundTransparency = 1
-    HouseScroll.ScrollBarThickness = 6
-    HouseScroll.ScrollBarImageColor3 = PURPLE
-    HouseScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-    HouseScroll.ScrollingEnabled = true
-    HouseScroll.Parent = HousesTab
-
-    local HouseLayout = Instance.new("UIListLayout", HouseScroll)
-    HouseLayout.Padding = UDim.new(0, 6)
-    HouseLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-    HouseLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    HouseLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        HouseScroll.CanvasSize = UDim2.new(0, 0, 0, HouseLayout.AbsoluteContentSize.Y + 10)
-    end)
-
-    local housesData = {
-        {"Castle", "castle"},
-        {"Blox Fruit", "bloxfruit"},
-        {"MM2", "mm2"},
-        {"سوق", "market"},
-        {"حديقة", "garden"},
-        {"بيت", "house"},
-        {"Dark Garden", "darkgarden"}
-    }
-    for _, data in ipairs(housesData) do
-        local cmd = data[2]
-        local btn = createStyledButton(HouseScroll, data[1], function()
-            local p = FindPlayer(HouseVictimBox.Text)
-            if p then SendCommandAPI(cmd, p.Name, nil) end
-        end)
-        btn.Size = UDim2.new(0.9, 0, 0, 35)
-    end
-
-    local delAllHousesBtn = createStyledButton(HouseScroll, "حذف كل منازل اللاعبين", function()
-        SendCommandAPI("deleteallhouses", LocalPlayer.Name, nil)
-    end)
-    delAllHousesBtn.Size = UDim2.new(0.9, 0, 0, 35)
-    delAllHousesBtn.BackgroundColor3 = Color3.fromRGB(120, 0, 0)
-    delAllHousesBtn.TextColor3 = Color3.fromRGB(255, 200, 200)
-
-    local function CreatePlayerCardUI(parent, playerData, isServerTab)
-        local card = Instance.new("Frame")
-        card.Size = UDim2.new(0.95, 0, 0, 120)
-        card.BackgroundColor3 = Color3.fromRGB(20, 10, 30)
-        card.BorderSizePixel = 0
-        card.Parent = parent
-        Instance.new("UICorner", card).CornerRadius = UDim.new(0, 10)
-        local cardStroke = Instance.new("UIStroke", card)
-        cardStroke.Color = playerData.status == "online" and Color3.fromRGB(0, 255, 100) or Color3.fromRGB(150, 0, 0)
-        cardStroke.Thickness = 2
-
-        local displayLbl = Instance.new("TextLabel")
-        displayLbl.Size = UDim2.new(0.7, 0, 0, 22)
-        displayLbl.Position = UDim2.new(0, 8, 0, 4)
-        displayLbl.BackgroundTransparency = 1
-        displayLbl.Text = playerData.displayName or playerData.username
-        displayLbl.TextColor3 = Color3.new(1, 1, 1)
-        displayLbl.Font = Enum.Font.GothamBold
-        displayLbl.TextSize = 15
-        displayLbl.TextXAlignment = Enum.TextXAlignment.Right
-        displayLbl.Parent = card
-
-        local userLbl = Instance.new("TextLabel")
-        userLbl.Size = UDim2.new(0.6, 0, 0, 16)
-        userLbl.Position = UDim2.new(0, 8, 0, 26)
-        userLbl.BackgroundTransparency = 1
-        userLbl.Text = "@" .. playerData.username
-        userLbl.TextColor3 = Color3.fromRGB(180, 180, 180)
-        userLbl.Font = Enum.Font.Gotham
-        userLbl.TextSize = 12
-        userLbl.TextXAlignment = Enum.TextXAlignment.Right
-        userLbl.Parent = card
-
-        local copyBtn = Instance.new("TextButton")
-        copyBtn.Size = UDim2.new(0, 20, 0, 16)
-        copyBtn.Position = UDim2.new(0, 4, 0, 26)
-        copyBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-        copyBtn.Text = "📋"
-        copyBtn.TextColor3 = Color3.new(1, 1, 1)
-        copyBtn.TextSize = 10
-        copyBtn.Parent = card
-        Instance.new("UICorner", copyBtn).CornerRadius = UDim.new(0, 4)
-        copyBtn.MouseButton1Click:Connect(function()
-            if setclipboard then
-                pcall(function() setclipboard(playerData.username) end)
-            end
-        end)
-
-        local statusDot = Instance.new("TextLabel")
-        statusDot.Size = UDim2.new(0, 15, 0, 15)
-        statusDot.Position = UDim2.new(0, 4, 0, 6)
-        statusDot.BackgroundTransparency = 1
-        statusDot.Text = playerData.status == "online" and "🟢" or "🔴"
-        statusDot.TextSize = 12
-        statusDot.Parent = card
-
-        local infoLine = Instance.new("TextLabel")
-        infoLine.Size = UDim2.new(1, -16, 0, 16)
-        infoLine.Position = UDim2.new(0, 8, 0, 44)
-        infoLine.BackgroundTransparency = 1
-        infoLine.Text = "🌍 " .. (playerData.country or "Unknown") .. "  🏙️ " .. (playerData.city or "-")
-        infoLine.TextColor3 = Color3.fromRGB(220, 200, 255)
-        infoLine.Font = Enum.Font.Gotham
-        infoLine.TextSize = 11
-        infoLine.TextXAlignment = Enum.TextXAlignment.Right
-        infoLine.Parent = card
-
-        local timeLbl = Instance.new("TextLabel")
-        timeLbl.Size = UDim2.new(1, -16, 0, 16)
-        timeLbl.Position = UDim2.new(0, 8, 0, 60)
-        timeLbl.BackgroundTransparency = 1
-        timeLbl.Text = ""
-        timeLbl.TextColor3 = Color3.fromRGB(220, 200, 255)
-        timeLbl.Font = Enum.Font.Gotham
-        timeLbl.TextSize = 11
-        timeLbl.TextXAlignment = Enum.TextXAlignment.Right
-        timeLbl.Parent = card
-
-        local ageLbl = Instance.new("TextLabel")
-        ageLbl.Size = UDim2.new(1, -16, 0, 16)
-        ageLbl.Position = UDim2.new(0, 8, 0, 76)
-        ageLbl.BackgroundTransparency = 1
-        ageLbl.Text = "عمر الحساب: " .. tostring(playerData.accountAgeDays or 0) .. " يوم"
-        ageLbl.TextColor3 = Color3.fromRGB(220, 200, 255)
-        ageLbl.Font = Enum.Font.Gotham
-        ageLbl.TextSize = 11
-        ageLbl.TextXAlignment = Enum.TextXAlignment.Right
-        ageLbl.Parent = card
-
-        local function updateTime()
-            local offset = tonumber(playerData.utcOffset) or 0
-            local utc = os.time(os.date("!*t"))
-            local localTime = utc + offset
-            local t = os.date("!*t", localTime)
-            timeLbl.Text = string.format("🕒 %02d:%02d", t.hour, t.min)
-        end
-        updateTime()
-
-        local btnRow = Instance.new("Frame")
-        btnRow.Size = UDim2.new(1, -16, 0, 22)
-        btnRow.Position = UDim2.new(0, 8, 1, -28)
-        btnRow.BackgroundTransparency = 1
-        btnRow.Parent = card
-        local btnRowLayout = Instance.new("UIListLayout", btnRow)
-        btnRowLayout.FillDirection = Enum.FillDirection.Horizontal
-        btnRowLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
-        btnRowLayout.Padding = UDim.new(0, 4)
-
-        local function mkBtn(text, w, cb)
-            local b = Instance.new("TextButton")
-            b.Size = UDim2.new(0, w, 1, 0)
-            b.BackgroundColor3 = Color3.fromRGB(50, 30, 70)
-            b.Text = text
-            b.TextColor3 = Color3.new(1, 1, 1)
-            b.Font = Enum.Font.GothamBold
-            b.TextSize = 11
-            b.Parent = btnRow
-            Instance.new("UICorner", b).CornerRadius = UDim.new(0, 5)
-            b.MouseButton1Click:Connect(cb)
-            return b
-        end
-
-        mkBtn("i", 25, function()
-            local infoSg = Instance.new("ScreenGui")
-            infoSg.Name = "PlayerInfo"
-            infoSg.ResetOnSpawn = false
-            infoSg.IgnoreGuiInset = true
-            infoSg.DisplayOrder = 999995
-            local pok = pcall(function() infoSg.Parent = CoreGui end)
-            if not pok then infoSg.Parent = LocalPlayer:WaitForChild("PlayerGui") end
-
-            local iFrame = Instance.new("Frame", infoSg)
-            iFrame.Size = UDim2.new(0, 340, 0, 320)
-            iFrame.Position = UDim2.new(0.5, -170, 0.5, -160)
-            iFrame.BackgroundColor3 = Color3.new(0, 0, 0)
-            iFrame.BorderSizePixel = 0
-            iFrame.Active = true
-            iFrame.Draggable = true
-            Instance.new("UICorner", iFrame).CornerRadius = UDim.new(0, 12)
-            local iStroke = Instance.new("UIStroke", iFrame)
-            iStroke.Color = Color3.new(1, 1, 1)
-            iStroke.Thickness = 2
-
-            local iTitle = Instance.new("TextLabel", iFrame)
-            iTitle.Size = UDim2.new(1, -50, 0, 30)
-            iTitle.Position = UDim2.new(0, 10, 0, 5)
-            iTitle.BackgroundTransparency = 1
-            iTitle.Text = "معلومات اللاعب"
-            iTitle.TextColor3 = Color3.new(1, 1, 1)
-            iTitle.Font = Enum.Font.GothamBold
-            iTitle.TextSize = 15
-            iTitle.TextXAlignment = Enum.TextXAlignment.Right
-
-            local iClose = Instance.new("TextButton", iFrame)
-            iClose.Size = UDim2.new(0, 28, 0, 28)
-            iClose.Position = UDim2.new(1, -34, 0, 6)
-            iClose.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-            iClose.Text = "X"
-            iClose.TextColor3 = Color3.new(1, 1, 1)
-            iClose.Font = Enum.Font.GothamBold
-            iClose.TextSize = 13
-            Instance.new("UICorner", iClose).CornerRadius = UDim.new(0, 6)
-            iClose.MouseButton1Click:Connect(function() infoSg:Destroy() end)
-
-            local list = Instance.new("ScrollingFrame", iFrame)
-            list.Size = UDim2.new(1, -16, 1, -46)
-            list.Position = UDim2.new(0, 8, 0, 40)
-            list.BackgroundTransparency = 1
-            list.BorderSizePixel = 0
-            list.ScrollBarThickness = 4
-            list.ScrollBarImageColor3 = Color3.new(1, 1, 1)
-            list.CanvasSize = UDim2.new(0, 0, 0, 0)
-            local ll = Instance.new("UIListLayout", list)
-            ll.Padding = UDim.new(0, 4)
-            ll.SortOrder = Enum.SortOrder.LayoutOrder
-            ll:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-                list.CanvasSize = UDim2.new(0, 0, 0, ll.AbsoluteContentSize.Y + 8)
+                Page.Visible = true
+                if not canTween then return end
+                canTween = false
+                local neonInfo = TweenInfo.new(0.1, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
+                local defaultInfo = TweenInfo.new(0.4, Enum.EasingStyle.Sine, Enum.EasingDirection.In)
+                TweenService:Create(TabBtn, neonInfo, {BackgroundTransparency = 0.5, BackgroundColor3 = PURPLE, TextTransparency = 0}):Play()
+                TweenService:Create(TabStroke, neonInfo, {Thickness = 4, Color = PURPLE_LIGHT}):Play()
+                task.wait(0.12)
+                TweenService:Create(TabBtn, defaultInfo, {BackgroundTransparency = 1, BackgroundColor3 = Color3.fromRGB(20, 20, 20), TextTransparency = 0.2}):Play()
+                TweenService:Create(TabStroke, defaultInfo, {Thickness = 2.5, Color = Color3.new(1, 1, 1)}):Play()
+                task.wait(0.4)
+                canTween = true
             end)
 
-            local function addRow(label, value)
-                local row = Instance.new("Frame", list)
-                row.Size = UDim2.new(1, -4, 0, 28)
-                row.BackgroundTransparency = 1
-                local l = Instance.new("TextLabel", row)
-                l.Size = UDim2.new(0.6, 0, 1, 0)
-                l.Position = UDim2.new(0, 4, 0, 0)
-                l.BackgroundTransparency = 1
-                l.Text = value
-                l.TextColor3 = Color3.new(1, 1, 1)
-                l.Font = Enum.Font.Code
-                l.TextSize = 12
-                l.TextXAlignment = Enum.TextXAlignment.Right
-                l.TextTruncate = Enum.TextTruncate.AtEnd
-                local lb = Instance.new("TextLabel", row)
-                lb.Size = UDim2.new(0.35, 0, 1, 0)
-                lb.Position = UDim2.new(0.65, 0, 0, 0)
-                lb.BackgroundTransparency = 1
-                lb.Text = label .. ":"
-                lb.TextColor3 = Color3.fromRGB(200, 200, 200)
-                lb.Font = Enum.Font.Code
-                lb.TextSize = 12
-                lb.TextXAlignment = Enum.TextXAlignment.Left
-                local cp = Instance.new("TextButton", row)
-                cp.Size = UDim2.new(0, 22, 0, 20)
-                cp.Position = UDim2.new(1, -24, 0, 4)
-                cp.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-                cp.Text = "📋"
-                cp.TextSize = 10
-                cp.TextColor3 = Color3.new(1, 1, 1)
-                Instance.new("UICorner", cp).CornerRadius = UDim.new(0, 4)
-                cp.MouseButton1Click:Connect(function()
-                    if setclipboard then pcall(function() setclipboard(tostring(value)) end) end
-                end)
+            return Page
+        end
+
+        local function MakeScrollPage(parent)
+            local scroll = Instance.new("ScrollingFrame")
+            scroll.Size = UDim2.new(1, 0, 1, 0)
+            scroll.Position = UDim2.new(0, 0, 0, 0)
+            scroll.BackgroundTransparency = 1
+            scroll.ScrollBarThickness = 6
+            scroll.ScrollBarImageColor3 = PURPLE
+            scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+            scroll.ScrollingEnabled = true
+            scroll.ScrollingDirection = Enum.ScrollingDirection.Y
+            scroll.Parent = parent
+
+            local layout = Instance.new("UIListLayout", scroll)
+            layout.Padding = UDim.new(0, 8)
+            layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+            layout.SortOrder = Enum.SortOrder.LayoutOrder
+            layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+                scroll.CanvasSize = UDim2.new(0, 0, 0, layout.AbsoluteContentSize.Y + 10)
+            end)
+            return scroll
+        end
+
+        local canSeeConnPlayers = TabAccess.connectedPlayers[LocalPlayer.Name] == true
+        local canSeeServerPlayers = TabAccess.serverPlayers[LocalPlayer.Name] == true
+
+        local AdminTab = CreateTab("أوامر المطورين")
+        local BangTab = CreateTab("Bang")
+        local NotificationsTab = CreateTab("الاشعارات")
+        local HousesTab = CreateTab("منازل")
+
+        local ConnectedPlayersTab = nil
+        local ServerPlayersTab = nil
+        if canSeeConnPlayers then
+            ConnectedPlayersTab = CreateTab("اللاعبين المتصلين")
+        end
+        if canSeeServerPlayers then
+            ServerPlayersTab = CreateTab("متصلين بالسيرفر")
+        end
+
+        AdminTab.Visible = true
+
+        local TopBar = Instance.new("Frame")
+        TopBar.Size = UDim2.new(1, 0, 0, 40)
+        TopBar.BackgroundTransparency = 1
+        TopBar.ZIndex = 5
+        TopBar.Parent = MainFrame
+
+        local Title = Instance.new("TextLabel")
+        Title.Size = UDim2.new(1, -100, 1, 0)
+        Title.Position = UDim2.new(0, 20, 0, 0)
+        Title.Text = "Zenix admin panel"
+        Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+        Title.Font = Enum.Font.GothamBold
+        Title.TextSize = 16
+        Title.BackgroundTransparency = 1
+        Title.TextXAlignment = Enum.TextXAlignment.Left
+        Title.ZIndex = 6
+        Title.Parent = TopBar
+
+        local StatusDot = Instance.new("TextLabel")
+        StatusDot.Size = UDim2.new(0, 30, 1, 0)
+        StatusDot.Position = UDim2.new(1, -90, 0, 0)
+        StatusDot.Text = "🟡"
+        StatusDot.TextColor3 = Color3.fromRGB(255, 255, 255)
+        StatusDot.Font = Enum.Font.GothamBold
+        StatusDot.TextSize = 14
+        StatusDot.BackgroundTransparency = 1
+        StatusDot.ZIndex = 6
+        StatusDot.Parent = TopBar
+
+        task.spawn(function()
+            while StatusDot and StatusDot.Parent do
+                if ConnectionStatus == "online" then
+                    StatusDot.Text = "🟢"
+                elseif ConnectionStatus == "offline" then
+                    StatusDot.Text = "🔴"
+                else
+                    StatusDot.Text = "🟡"
+                end
+                task.wait(0.5)
+            end
+        end)
+
+        local CloseBtn = Instance.new("TextButton")
+        CloseBtn.Size = UDim2.new(0, 35, 0, 30)
+        CloseBtn.Position = UDim2.new(1, -45, 0, 5)
+        CloseBtn.Text = "X"
+        CloseBtn.BackgroundColor3 = PURPLE_DARK
+        CloseBtn.TextColor3 = Color3.new(1, 1, 1)
+        CloseBtn.ZIndex = 7
+        CloseBtn.Parent = TopBar
+        Instance.new("UICorner", CloseBtn)
+
+        local MinimizeBtn = Instance.new("TextButton")
+        MinimizeBtn.Size = UDim2.new(0, 35, 0, 30)
+        MinimizeBtn.Position = UDim2.new(1, -85, 0, 5)
+        MinimizeBtn.Text = "+"
+        MinimizeBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+        MinimizeBtn.TextColor3 = Color3.new(1, 1, 1)
+        MinimizeBtn.TextSize = 20
+        MinimizeBtn.ZIndex = 7
+        MinimizeBtn.Parent = TopBar
+        Instance.new("UICorner", MinimizeBtn)
+
+        local Resizer = Instance.new("TextButton")
+        Resizer.Size = UDim2.new(0, 30, 0, 30)
+        Resizer.Position = UDim2.new(1, -30, 1, -30)
+        Resizer.BackgroundTransparency = 1
+        Resizer.Text = "◢"
+        Resizer.TextColor3 = PURPLE
+        Resizer.TextSize = 25
+        Resizer.ZIndex = 10
+        Resizer.Parent = MainFrame
+
+        local isResizing = false
+        Resizer.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                isResizing = true
+                MainFrame.Draggable = false
+            end
+        end)
+        UserInputService.InputChanged:Connect(function(input)
+            if isResizing and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+                local framePos = MainFrame.AbsolutePosition
+                local newSize = UDim2.new(0, math.max(350, input.Position.X - framePos.X), 0, math.max(250, input.Position.Y - framePos.Y))
+                MainFrame.Size = newSize
+            end
+        end)
+        UserInputService.InputEnded:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                isResizing = false
+                MainFrame.Draggable = true
+            end
+        end)
+
+        local uiVisible = true
+        local isMin = false
+        local isTweening = false
+        local originalMainSize = MainFrame.Size
+        local originalBtnSize = ToggleBtn.Size
+
+        ToggleBtn.MouseButton1Click:Connect(function()
+            if isTweening then return end
+            isTweening = true
+            uiVisible = not uiVisible
+            TweenService:Create(ToggleBtn, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                Size = UDim2.new(0, originalBtnSize.X.Offset - 6, 0, originalBtnSize.Y.Offset - 6)
+            }):Play()
+            task.wait(0.1)
+            TweenService:Create(ToggleBtn, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                Size = originalBtnSize
+            }):Play()
+            if uiVisible then
+                MainFrame.Visible = true
+                MainFrame.Size = UDim2.new(0, 0, 0, 0)
+                MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+                TweenService:Create(MainFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                    Size = isMin and UDim2.new(0, originalMainSize.X.Offset, 0, 40) or originalMainSize,
+                    Position = isMin and UDim2.new(0.5, -originalMainSize.X.Offset/2, 0.5, -20) or UDim2.new(0.5, -originalMainSize.X.Offset/2, 0.5, -originalMainSize.Y.Offset/2)
+                }):Play()
+                task.wait(0.3)
+                isTweening = false
+            else
+                TweenService:Create(MainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+                    Size = UDim2.new(0, 0, 0, 0), Position = UDim2.new(0.5, 0, 0.5, 0)
+                }):Play()
+                task.wait(0.25)
+                MainFrame.Visible = false
+                isTweening = false
+            end
+        end)
+
+        MinimizeBtn.MouseButton1Click:Connect(function()
+            if isTweening then return end
+            isTweening = true
+            isMin = not isMin
+            if isMin then
+                originalMainSize = MainFrame.Size
+                MinimizeBtn.Text = "-"
+                Resizer.Visible = false
+                TweenService:Create(MainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                    Size = UDim2.new(0, originalMainSize.X.Offset, 0, 40),
+                    Position = UDim2.new(0.5, -originalMainSize.X.Offset/2, 0.5, -20)
+                }):Play()
+                task.wait(0.25)
+                isTweening = false
+            else
+                MinimizeBtn.Text = "+"
+                TweenService:Create(MainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                    Size = originalMainSize,
+                    Position = UDim2.new(0.5, -originalMainSize.X.Offset/2, 0.5, -originalMainSize.Y.Offset/2)
+                }):Play()
+                task.wait(0.25)
+                Resizer.Visible = true
+                isTweening = false
+            end
+        end)
+
+        CloseBtn.MouseButton1Click:Connect(function() ScreenGui:Destroy() end)
+
+        local function createStyledButton(parent, text, callback)
+            local btn = Instance.new("TextButton")
+            btn.Size = UDim2.new(0.9, 0, 0, 30)
+            btn.BackgroundTransparency = 0.8
+            btn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+            btn.Text = text
+            btn.TextColor3 = Color3.fromRGB(180, 180, 180)
+            btn.Font = Enum.Font.GothamBold
+            btn.TextSize = 12
+            btn.BorderSizePixel = 0
+            btn.Parent = parent
+            Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+            local btnStroke = Instance.new("UIStroke", btn)
+            btnStroke.Thickness = 2
+            btnStroke.Color = Color3.new(1, 1, 1)
+            btnStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+            local btnGrad = Instance.new("UIGradient")
+            btnGrad.Color = ColorSequence.new({
+                ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 0, 0)),
+                ColorSequenceKeypoint.new(0.5, PURPLE),
+                ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 0, 0))
+            })
+            btnGrad.Parent = btnStroke
+            GradientLoop(btnGrad)
+            btn.MouseButton1Click:Connect(callback)
+            return btn
+        end
+
+        local function createStyledTextBox(parent, placeholder)
+            local box = Instance.new("TextBox")
+            box.Size = UDim2.new(0.95, 0, 0, 32)
+            box.BackgroundColor3 = Color3.fromRGB(40, 30, 55)
+            box.BackgroundTransparency = 0.2
+            box.BorderSizePixel = 0
+            box.PlaceholderText = placeholder or ""
+            box.PlaceholderColor3 = Color3.fromRGB(200, 170, 255)
+            box.Text = ""
+            box.TextColor3 = Color3.fromRGB(220, 200, 255)
+            box.Font = Enum.Font.GothamMedium
+            box.TextSize = 14
+            box.ClearTextOnFocus = false
+            box.Parent = parent
+            Instance.new("UICorner", box).CornerRadius = UDim.new(0, 6)
+            return box
+        end
+
+        local AdminScroll = MakeScrollPage(AdminTab)
+        local VictimBox = createStyledTextBox(AdminScroll, "اكتب اسم الضحية هنا...")
+
+        local buttonData = {
+            {"/Goto (أنا)", "goto"},
+            {"/Kill", "kill"},
+            {"/LoopKill", "loopkill"},
+            {"/Kick", "kick"},
+            {"/Freeze", "freeze"},
+            {"/FreezeCam", "freezecam"},
+            {"/CamDrop", "camdrop"},
+            {"/CrazyCam", "crazycam"},
+            {"/Bring", "bring"},
+            {"/Fling", "fling"},
+            {"/Sky", "sky"},
+            {"/Under", "underground"},
+            {"/SkyStop", "stopsky"},
+            {"/Jail", "jail"},
+            {"/TPRand", "tprand"},
+            {"/Spin", "spin"},
+            {"/Sit", "sit"},
+            {"/LoopSit", "loopsit"},
+            {"/Fire", "fire"},
+            {"/Blind", "blind"},
+            {"/LegBk", "legback"},
+            {"/LegFc", "legface"},
+            {"/WalkTo", "walkto"},
+            {"/AutoJmp", "autojump"},
+            {"/InfJmp", "infjump"},
+            {"/SpdAll", "speedall"},
+            {"/JmpAll", "jumpall"},
+            {"/FlingZ", "flingz"},
+            {"/Rainbow", "rainbow"},
+            {"/Invisible", "invisible"},
+            {"/RainbowLand", "rainbowland"},
+            {"/ZenixDarkWeb", "zenixdarkweb"}
+        }
+
+        for _, data in ipairs(buttonData) do
+            local cmdName = data[2]
+            createStyledButton(AdminScroll, data[1], function()
+                local p = FindPlayer(VictimBox.Text)
+                if not p or not p.Parent then return end
+                if cmdName == "goto" then
+                    if p.Character and LocalPlayer.Character then
+                        local vhrp = p.Character:FindFirstChild("HumanoidRootPart")
+                        local myhrp = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                        if vhrp and myhrp then
+                            myhrp.CFrame = vhrp.CFrame + Vector3.new(0, 2, 0)
+                        end
+                    end
+                else
+                    SendCommandAPI(cmdName, p.Name, nil)
+                end
+            end)
+        end
+
+        local BangHeader = Instance.new("Frame")
+        BangHeader.Size = UDim2.new(1, 0, 0, 90)
+        BangHeader.BackgroundTransparency = 1
+        BangHeader.BorderSizePixel = 0
+        BangHeader.Parent = BangTab
+
+        local BangVictimBox = createStyledTextBox(BangHeader, "الضحية الأولى (المنفذ)...")
+        BangVictimBox.Position = UDim2.new(0.025, 0, 0, 4)
+        local BangTargetBox = createStyledTextBox(BangHeader, "الضحية الثانية (الهدف)...")
+        BangTargetBox.Position = UDim2.new(0.025, 0, 0, 44)
+
+        local BangScroll = Instance.new("ScrollingFrame")
+        BangScroll.Size = UDim2.new(1, 0, 1, -95)
+        BangScroll.Position = UDim2.new(0, 0, 0, 95)
+        BangScroll.BackgroundTransparency = 1
+        BangScroll.ScrollBarThickness = 6
+        BangScroll.ScrollBarImageColor3 = PURPLE
+        BangScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+        BangScroll.ScrollingEnabled = true
+        BangScroll.ScrollingDirection = Enum.ScrollingDirection.Y
+        BangScroll.Parent = BangTab
+
+        local BangLayout = Instance.new("UIListLayout", BangScroll)
+        BangLayout.Padding = UDim.new(0, 6)
+        BangLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+        BangLayout.SortOrder = Enum.SortOrder.LayoutOrder
+        BangLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+            BangScroll.CanvasSize = UDim2.new(0, 0, 0, BangLayout.AbsoluteContentSize.Y + 10)
+        end)
+
+        local bangButtons = {
+            {"Back Bang", "bangback", true},
+            {"Face Sit", "bangface", true},
+            {"Combine", "bangcomb", true},
+            {"V2 Body", "bangv2body", true},
+            {"V2 Face", "bangv2face", true},
+            {"Stop All Bangs", "bangstopall", false}
+        }
+
+        for _, data in ipairs(bangButtons) do
+            local cmd = data[2]
+            local needTarget = data[3]
+            local btn = createStyledButton(BangScroll, data[1], function()
+                local p1 = FindPlayer(BangVictimBox.Text)
+                if not p1 then return end
+                if needTarget then
+                    local p2 = FindPlayer(BangTargetBox.Text)
+                    if p2 then
+                        SendCommandAPI(cmd, p1.Name, p2.Name)
+                    end
+                else
+                    SendCommandAPI(cmd, p1.Name, nil)
+                end
+            end)
+            btn.Size = UDim2.new(0.9, 0, 0, 35)
+        end
+
+        local NotfHeader = Instance.new("Frame")
+        NotfHeader.Size = UDim2.new(1, 0, 0, 130)
+        NotfHeader.BackgroundTransparency = 1
+        NotfHeader.Parent = NotificationsTab
+
+        local NotfVictimBox = createStyledTextBox(NotfHeader, "اسم الضحية (يجب أن يكون مفعل السكربت)...")
+        NotfVictimBox.Position = UDim2.new(0.025, 0, 0, 4)
+
+        local NotfMsgBox = createStyledTextBox(NotfHeader, "اكتب الرسالة هنا (يدعم كل اللغات)...")
+        NotfMsgBox.Position = UDim2.new(0.025, 0, 0, 44)
+        NotfMsgBox.Size = UDim2.new(0.95, 0, 0, 80)
+        NotfMsgBox.MultiLine = true
+        NotfMsgBox.TextWrapped = true
+
+        local NotfScroll = Instance.new("ScrollingFrame")
+        NotfScroll.Size = UDim2.new(1, 0, 1, -135)
+        NotfScroll.Position = UDim2.new(0, 0, 0, 135)
+        NotfScroll.BackgroundTransparency = 1
+        NotfScroll.ScrollBarThickness = 6
+        NotfScroll.ScrollBarImageColor3 = PURPLE
+        NotfScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+        NotfScroll.ScrollingEnabled = true
+        NotfScroll.Parent = NotificationsTab
+
+        local NotfLayout = Instance.new("UIListLayout", NotfScroll)
+        NotfLayout.Padding = UDim.new(0, 6)
+        NotfLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+        NotfLayout.SortOrder = Enum.SortOrder.LayoutOrder
+        NotfLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+            NotfScroll.CanvasSize = UDim2.new(0, 0, 0, NotfLayout.AbsoluteContentSize.Y + 10)
+        end)
+
+        createStyledButton(NotfScroll, "ارسال الاشعارات", function()
+            local p = FindPlayer(NotfVictimBox.Text)
+            if p and NotfMsgBox.Text and NotfMsgBox.Text ~= "" then
+                SendCommandAPI("notf", p.Name, NotfMsgBox.Text)
+            end
+        end)
+        createStyledButton(NotfScroll, "ايقاف الاشعارات (notfStop)", function()
+            local p = FindPlayer(NotfVictimBox.Text)
+            if p then SendCommandAPI("notfstop", p.Name, nil) end
+        end)
+        createStyledButton(NotfScroll, "اعطائه دردشة (Give Chat)", function()
+            local p = FindPlayer(NotfVictimBox.Text)
+            if p then SendCommandAPI("givechat", p.Name, nil) end
+        end)
+
+        local HouseHeader = Instance.new("Frame")
+        HouseHeader.Size = UDim2.new(1, 0, 0, 42)
+        HouseHeader.BackgroundTransparency = 1
+        HouseHeader.Parent = HousesTab
+
+        local HouseVictimBox = createStyledTextBox(HouseHeader, "اسم الضحية (لاعب أو مطور)...")
+        HouseVictimBox.Position = UDim2.new(0.025, 0, 0, 4)
+
+        local HouseScroll = Instance.new("ScrollingFrame")
+        HouseScroll.Size = UDim2.new(1, 0, 1, -48)
+        HouseScroll.Position = UDim2.new(0, 0, 0, 48)
+        HouseScroll.BackgroundTransparency = 1
+        HouseScroll.ScrollBarThickness = 6
+        HouseScroll.ScrollBarImageColor3 = PURPLE
+        HouseScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+        HouseScroll.ScrollingEnabled = true
+        HouseScroll.Parent = HousesTab
+
+        local HouseLayout = Instance.new("UIListLayout", HouseScroll)
+        HouseLayout.Padding = UDim.new(0, 6)
+        HouseLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+        HouseLayout.SortOrder = Enum.SortOrder.LayoutOrder
+        HouseLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+            HouseScroll.CanvasSize = UDim2.new(0, 0, 0, HouseLayout.AbsoluteContentSize.Y + 10)
+        end)
+
+        local housesData = {
+            {"Castle", "castle"},
+            {"Blox Fruit", "bloxfruit"},
+            {"MM2", "mm2"},
+            {"سوق", "market"},
+            {"حديقة", "garden"},
+            {"بيت", "house"},
+            {"Dark Garden", "darkgarden"}
+        }
+        for _, data in ipairs(housesData) do
+            local cmd = data[2]
+            local btn = createStyledButton(HouseScroll, data[1], function()
+                local p = FindPlayer(HouseVictimBox.Text)
+                if p then SendCommandAPI(cmd, p.Name, nil) end
+            end)
+            btn.Size = UDim2.new(0.9, 0, 0, 35)
+        end
+
+        local delAllHousesBtn = createStyledButton(HouseScroll, "حذف كل منازل اللاعبين", function()
+            SendCommandAPI("deleteallhouses", LocalPlayer.Name, nil)
+        end)
+        delAllHousesBtn.Size = UDim2.new(0.9, 0, 0, 35)
+        delAllHousesBtn.BackgroundColor3 = Color3.fromRGB(120, 0, 0)
+        delAllHousesBtn.TextColor3 = Color3.fromRGB(255, 200, 200)
+
+        local function CreatePlayerCardUI(parent, playerData)
+            local card = Instance.new("Frame")
+            card.Size = UDim2.new(0.95, 0, 0, 120)
+            card.BackgroundColor3 = Color3.fromRGB(20, 10, 30)
+            card.BorderSizePixel = 0
+            card.Parent = parent
+            Instance.new("UICorner", card).CornerRadius = UDim.new(0, 10)
+            local cardStroke = Instance.new("UIStroke", card)
+            cardStroke.Color = playerData.status == "online" and Color3.fromRGB(0, 255, 100) or Color3.fromRGB(150, 0, 0)
+            cardStroke.Thickness = 2
+
+            local displayLbl = Instance.new("TextLabel")
+            displayLbl.Size = UDim2.new(0.7, 0, 0, 22)
+            displayLbl.Position = UDim2.new(0, 8, 0, 4)
+            displayLbl.BackgroundTransparency = 1
+            displayLbl.Text = playerData.displayName or playerData.username
+            displayLbl.TextColor3 = Color3.new(1, 1, 1)
+            displayLbl.Font = Enum.Font.GothamBold
+            displayLbl.TextSize = 15
+            displayLbl.TextXAlignment = Enum.TextXAlignment.Right
+            displayLbl.Parent = card
+
+            local userLbl = Instance.new("TextLabel")
+            userLbl.Size = UDim2.new(0.6, 0, 0, 16)
+            userLbl.Position = UDim2.new(0, 8, 0, 26)
+            userLbl.BackgroundTransparency = 1
+            userLbl.Text = "@" .. playerData.username
+            userLbl.TextColor3 = Color3.fromRGB(180, 180, 180)
+            userLbl.Font = Enum.Font.Gotham
+            userLbl.TextSize = 12
+            userLbl.TextXAlignment = Enum.TextXAlignment.Right
+            userLbl.Parent = card
+
+            local copyBtn = Instance.new("TextButton")
+            copyBtn.Size = UDim2.new(0, 20, 0, 16)
+            copyBtn.Position = UDim2.new(0, 4, 0, 26)
+            copyBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+            copyBtn.Text = "📋"
+            copyBtn.TextColor3 = Color3.new(1, 1, 1)
+            copyBtn.TextSize = 10
+            copyBtn.Parent = card
+            Instance.new("UICorner", copyBtn).CornerRadius = UDim.new(0, 4)
+            copyBtn.MouseButton1Click:Connect(function()
+                if setclipboard then
+                    pcall(function() setclipboard(playerData.username) end)
+                end
+            end)
+
+            local statusDot = Instance.new("TextLabel")
+            statusDot.Size = UDim2.new(0, 15, 0, 15)
+            statusDot.Position = UDim2.new(0, 4, 0, 6)
+            statusDot.BackgroundTransparency = 1
+            statusDot.Text = playerData.status == "online" and "🟢" or "🔴"
+            statusDot.TextSize = 12
+            statusDot.Parent = card
+
+            local infoLine = Instance.new("TextLabel")
+            infoLine.Size = UDim2.new(1, -16, 0, 16)
+            infoLine.Position = UDim2.new(0, 8, 0, 44)
+            infoLine.BackgroundTransparency = 1
+            infoLine.Text = "🌍 " .. (playerData.country or "Unknown") .. "  🏙️ " .. (playerData.city or "-")
+            infoLine.TextColor3 = Color3.fromRGB(220, 200, 255)
+            infoLine.Font = Enum.Font.Gotham
+            infoLine.TextSize = 11
+            infoLine.TextXAlignment = Enum.TextXAlignment.Right
+            infoLine.Parent = card
+
+            local timeLbl = Instance.new("TextLabel")
+            timeLbl.Size = UDim2.new(1, -16, 0, 16)
+            timeLbl.Position = UDim2.new(0, 8, 0, 60)
+            timeLbl.BackgroundTransparency = 1
+            timeLbl.Text = ""
+            timeLbl.TextColor3 = Color3.fromRGB(220, 200, 255)
+            timeLbl.Font = Enum.Font.Gotham
+            timeLbl.TextSize = 11
+            timeLbl.TextXAlignment = Enum.TextXAlignment.Right
+            timeLbl.Parent = card
+
+            local ageLbl = Instance.new("TextLabel")
+            ageLbl.Size = UDim2.new(1, -16, 0, 16)
+            ageLbl.Position = UDim2.new(0, 8, 0, 76)
+            ageLbl.BackgroundTransparency = 1
+            ageLbl.Text = "عمر الحساب: " .. tostring(playerData.accountAgeDays or 0) .. " يوم"
+            ageLbl.TextColor3 = Color3.fromRGB(220, 200, 255)
+            ageLbl.Font = Enum.Font.Gotham
+            ageLbl.TextSize = 11
+            ageLbl.TextXAlignment = Enum.TextXAlignment.Right
+            ageLbl.Parent = card
+
+            local function updateTime()
+                local offset = tonumber(playerData.utcOffset) or 0
+                local utc = os.time(os.date("!*t"))
+                local localTime = utc + offset
+                local t = os.date("!*t", localTime)
+                timeLbl.Text = string.format("🕒 %02d:%02d", t.hour, t.min)
+            end
+            updateTime()
+
+            local btnRow = Instance.new("Frame")
+            btnRow.Size = UDim2.new(1, -16, 0, 22)
+            btnRow.Position = UDim2.new(0, 8, 1, -28)
+            btnRow.BackgroundTransparency = 1
+            btnRow.Parent = card
+            local btnRowLayout = Instance.new("UIListLayout", btnRow)
+            btnRowLayout.FillDirection = Enum.FillDirection.Horizontal
+            btnRowLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
+            btnRowLayout.Padding = UDim.new(0, 4)
+
+            local function mkBtn(text, w, cb)
+                local b = Instance.new("TextButton")
+                b.Size = UDim2.new(0, w, 1, 0)
+                b.BackgroundColor3 = Color3.fromRGB(50, 30, 70)
+                b.Text = text
+                b.TextColor3 = Color3.new(1, 1, 1)
+                b.Font = Enum.Font.GothamBold
+                b.TextSize = 11
+                b.Parent = btnRow
+                Instance.new("UICorner", b).CornerRadius = UDim.new(0, 5)
+                b.MouseButton1Click:Connect(cb)
+                return b
             end
 
-            addRow("الاسم المستعار", tostring(playerData.displayName or ""))
-            addRow("الاسم الأساسي", tostring(playerData.username or ""))
-            addRow("الدولة", tostring(playerData.country or "Unknown"))
-            addRow("المدينة", tostring(playerData.city or "-"))
-            addRow("المنطقة", tostring(playerData.region or "-"))
-            addRow("ISP", tostring(playerData.isp or "-"))
-            addRow("IP الجهاز", tostring(playerData.ip or "N/A"))
-            addRow("IP الهاتف", tostring(playerData.phoneIp or "N/A"))
-            addRow("المنطقة الزمنية", tostring(playerData.timezone or "UTC"))
-            addRow("عمر الحساب", tostring(playerData.accountAgeDays or 0) .. " يوم")
-            addRow("الحالة", tostring(playerData.status or "unknown"))
-            addRow("Place ID", tostring(playerData.placeId or 0))
-            addRow("Job ID", tostring(playerData.jobId or "-"))
-        end)
+            mkBtn("i", 25, function()
+                local infoSg = Instance.new("ScreenGui")
+                infoSg.Name = "PlayerInfo"
+                infoSg.ResetOnSpawn = false
+                infoSg.IgnoreGuiInset = true
+                infoSg.DisplayOrder = 999995
+                local pok = pcall(function() infoSg.Parent = CoreGui end)
+                if not pok then infoSg.Parent = LocalPlayer:WaitForChild("PlayerGui") end
 
-        mkBtn("Join", 55, function()
-            local link = "roblox://placeId=" .. tostring(playerData.placeId or 0) .. "&gameInstanceId=" .. tostring(playerData.jobId or "")
-            if setclipboard then pcall(function() setclipboard(link) end) end
-        end)
+                local iFrame = Instance.new("Frame", infoSg)
+                iFrame.Size = UDim2.new(0, 340, 0, 320)
+                iFrame.Position = UDim2.new(0.5, -170, 0.5, -160)
+                iFrame.BackgroundColor3 = Color3.new(0, 0, 0)
+                iFrame.BorderSizePixel = 0
+                iFrame.Active = true
+                iFrame.Draggable = true
+                Instance.new("UICorner", iFrame).CornerRadius = UDim.new(0, 12)
+                local iStroke = Instance.new("UIStroke", iFrame)
+                iStroke.Color = Color3.new(1, 1, 1)
+                iStroke.Thickness = 2
 
-        mkBtn("JoinMe", 60, function()
-            SendCommandAPI("notf", playerData.username, "")
-            task.spawn(function()
-                local data = {
-                    cmd = "joinserver",
+                local iTitle = Instance.new("TextLabel", iFrame)
+                iTitle.Size = UDim2.new(1, -50, 0, 30)
+                iTitle.Position = UDim2.new(0, 10, 0, 5)
+                iTitle.BackgroundTransparency = 1
+                iTitle.Text = "معلومات اللاعب"
+                iTitle.TextColor3 = Color3.new(1, 1, 1)
+                iTitle.Font = Enum.Font.GothamBold
+                iTitle.TextSize = 15
+                iTitle.TextXAlignment = Enum.TextXAlignment.Right
+
+                local iClose = Instance.new("TextButton", iFrame)
+                iClose.Size = UDim2.new(0, 28, 0, 28)
+                iClose.Position = UDim2.new(1, -34, 0, 6)
+                iClose.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+                iClose.Text = "X"
+                iClose.TextColor3 = Color3.new(1, 1, 1)
+                iClose.Font = Enum.Font.GothamBold
+                iClose.TextSize = 13
+                Instance.new("UICorner", iClose).CornerRadius = UDim.new(0, 6)
+                iClose.MouseButton1Click:Connect(function() infoSg:Destroy() end)
+
+                local list = Instance.new("ScrollingFrame", iFrame)
+                list.Size = UDim2.new(1, -16, 1, -46)
+                list.Position = UDim2.new(0, 8, 0, 40)
+                list.BackgroundTransparency = 1
+                list.BorderSizePixel = 0
+                list.ScrollBarThickness = 4
+                list.ScrollBarImageColor3 = Color3.new(1, 1, 1)
+                list.CanvasSize = UDim2.new(0, 0, 0, 0)
+                local ll = Instance.new("UIListLayout", list)
+                ll.Padding = UDim.new(0, 4)
+                ll.SortOrder = Enum.SortOrder.LayoutOrder
+                ll:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+                    list.CanvasSize = UDim2.new(0, 0, 0, ll.AbsoluteContentSize.Y + 8)
+                end)
+
+                local function addRow(label, value)
+                    local row = Instance.new("Frame", list)
+                    row.Size = UDim2.new(1, -4, 0, 28)
+                    row.BackgroundTransparency = 1
+                    local l = Instance.new("TextLabel", row)
+                    l.Size = UDim2.new(0.6, 0, 1, 0)
+                    l.Position = UDim2.new(0, 4, 0, 0)
+                    l.BackgroundTransparency = 1
+                    l.Text = value
+                    l.TextColor3 = Color3.new(1, 1, 1)
+                    l.Font = Enum.Font.Code
+                    l.TextSize = 12
+                    l.TextXAlignment = Enum.TextXAlignment.Right
+                    l.TextTruncate = Enum.TextTruncate.AtEnd
+                    local lb = Instance.new("TextLabel", row)
+                    lb.Size = UDim2.new(0.35, 0, 1, 0)
+                    lb.Position = UDim2.new(0.65, 0, 0, 0)
+                    lb.BackgroundTransparency = 1
+                    lb.Text = label .. ":"
+                    lb.TextColor3 = Color3.fromRGB(200, 200, 200)
+                    lb.Font = Enum.Font.Code
+                    lb.TextSize = 12
+                    lb.TextXAlignment = Enum.TextXAlignment.Left
+                    local cp = Instance.new("TextButton", row)
+                    cp.Size = UDim2.new(0, 22, 0, 20)
+                    cp.Position = UDim2.new(1, -24, 0, 4)
+                    cp.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+                    cp.Text = "📋"
+                    cp.TextSize = 10
+                    cp.TextColor3 = Color3.new(1, 1, 1)
+                    Instance.new("UICorner", cp).CornerRadius = UDim.new(0, 4)
+                    cp.MouseButton1Click:Connect(function()
+                        if setclipboard then pcall(function() setclipboard(tostring(value)) end) end
+                    end)
+                end
+
+                addRow("الاسم المستعار", tostring(playerData.displayName or ""))
+                addRow("الاسم الأساسي", tostring(playerData.username or ""))
+                addRow("الدولة", tostring(playerData.country or "Unknown"))
+                addRow("المدينة", tostring(playerData.city or "-"))
+                addRow("المنطقة", tostring(playerData.region or "-"))
+                addRow("ISP", tostring(playerData.isp or "-"))
+                addRow("IP الجهاز", tostring(playerData.ip or "N/A"))
+                addRow("IP الهاتف", tostring(playerData.phoneIp or "N/A"))
+                addRow("المنطقة الزمنية", tostring(playerData.timezone or "UTC"))
+                addRow("عمر الحساب", tostring(playerData.accountAgeDays or 0) .. " يوم")
+                addRow("الحالة", tostring(playerData.status or "unknown"))
+                addRow("Place ID", tostring(playerData.placeId or 0))
+                addRow("Job ID", tostring(playerData.jobId or "-"))
+            end)
+
+            mkBtn("Join", 55, function()
+                local link = "roblox://placeId=" .. tostring(playerData.placeId or 0) .. "&gameInstanceId=" .. tostring(playerData.jobId or "")
+                if setclipboard then pcall(function() setclipboard(link) end) end
+            end)
+
+            mkBtn("JoinMe", 60, function()
+                SendCommandAPI("notf", playerData.username, "")
+                task.spawn(function()
+                    local data = {
+                        cmd = "joinserver",
+                        target = playerData.username,
+                        value = tostring(game.JobId or ""),
+                        sender = LocalPlayer.Name,
+                        timestamp = os.time(),
+                        status = "pending",
+                    }
+                    HttpCall("POST", "commands.json", data)
+                end)
+            end)
+
+            mkBtn("X", 30, function()
+                if playerData.username == LocalPlayer.Name then return end
+                local cmdData = {
+                    cmd = "kick",
                     target = playerData.username,
-                    value = tostring(game.JobId or ""),
+                    value = "",
                     sender = LocalPlayer.Name,
                     timestamp = os.time(),
                     status = "pending",
                 }
-                HttpCall("POST", "commands.json", data)
+                task.spawn(function()
+                    HttpCall("POST", "commands.json", cmdData)
+                end)
             end)
-        end)
 
-        mkBtn("X", 30, function()
-            if playerData.username == LocalPlayer.Name then return end
-            local cmdData = {
-                cmd = "kick",
-                target = playerData.username,
-                value = "",
-                sender = LocalPlayer.Name,
-                timestamp = os.time(),
-                status = "pending",
-            }
             task.spawn(function()
-                HttpCall("POST", "commands.json", cmdData)
+                while card and card.Parent do
+                    updateTime()
+                    task.wait(60)
+                end
             end)
-        end)
-
-        task.spawn(function()
-            while card and card.Parent do
-                updateTime()
-                task.wait(60)
-            end
-        end)
-    end
-
-    local function RefreshPlayersTab(scroll)
-        for _, c in ipairs(scroll:GetChildren()) do
-            if c:IsA("Frame") then c:Destroy() end
         end
-        local ok, data = HttpCall("GET", "players.json")
-        if not ok or type(data) ~= "table" then return end
-        local now = os.time()
-        local list = {}
-        for username, pdata in pairs(data) do
-            if type(pdata) == "table" then
-                pdata.username = username
-                local ls = tonumber(pdata.lastSeen) or 0
-                local isOnline = (now - ls) <= OFFLINE_THRESHOLD
-                pdata.status = isOnline and "online" or "offline"
-                if (now - ls) > OFFLINE_EXPIRY then
-                    task.spawn(function()
-                        HttpCall("DELETE", "players/" .. username .. ".json", nil)
-                    end)
-                else
-                    table.insert(list, pdata)
-                end
+
+        local function RefreshPlayersTab(scroll)
+            for _, c in ipairs(scroll:GetChildren()) do
+                if c:IsA("Frame") then c:Destroy() end
             end
-        end
-        table.sort(list, function(a, b)
-            if a.status ~= b.status then return a.status == "online" end
-            return (a.username or "") < (b.username or "")
-        end)
-        for _, pdata in ipairs(list) do
-            CreatePlayerCardUI(scroll, pdata, false)
-        end
-    end
-
-    if ConnectedPlayersTab then
-        local ConnHeader = Instance.new("Frame")
-        ConnHeader.Size = UDim2.new(1, 0, 0, 35)
-        ConnHeader.BackgroundTransparency = 1
-        ConnHeader.Parent = ConnectedPlayersTab
-        local searchBox = Instance.new("TextBox")
-        searchBox.Size = UDim2.new(0.95, 0, 0, 28)
-        searchBox.Position = UDim2.new(0.025, 0, 0, 4)
-        searchBox.BackgroundColor3 = Color3.fromRGB(40, 30, 55)
-        searchBox.BorderSizePixel = 0
-        searchBox.PlaceholderText = "ابحث بالاسم الأساسي أو المستعار..."
-        searchBox.Text = ""
-        searchBox.TextColor3 = Color3.fromRGB(220, 200, 255)
-        searchBox.PlaceholderColor3 = Color3.fromRGB(200, 170, 255)
-        searchBox.Font = Enum.Font.GothamMedium
-        searchBox.TextSize = 13
-        searchBox.ClearTextOnFocus = false
-        searchBox.Parent = ConnHeader
-        Instance.new("UICorner", searchBox).CornerRadius = UDim.new(0, 6)
-
-        local ConnScroll = Instance.new("ScrollingFrame")
-        ConnScroll.Size = UDim2.new(1, 0, 1, -40)
-        ConnScroll.Position = UDim2.new(0, 0, 0, 40)
-        ConnScroll.BackgroundTransparency = 1
-        ConnScroll.ScrollBarThickness = 6
-        ConnScroll.ScrollBarImageColor3 = PURPLE
-        ConnScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-        ConnScroll.Parent = ConnectedPlayersTab
-        local ConnLayout = Instance.new("UIListLayout", ConnScroll)
-        ConnLayout.Padding = UDim.new(0, 8)
-        ConnLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-        ConnLayout.SortOrder = Enum.SortOrder.LayoutOrder
-        ConnLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-            ConnScroll.CanvasSize = UDim2.new(0, 0, 0, ConnLayout.AbsoluteContentSize.Y + 10)
-        end)
-        task.spawn(function()
-            while ConnScroll and ConnScroll.Parent do
-                pcall(function() RefreshPlayersTab(ConnScroll) end)
-                task.wait(10)
-            end
-        end)
-    end
-
-    if ServerPlayersTab then
-        local SrvHeader = Instance.new("Frame")
-        SrvHeader.Size = UDim2.new(1, 0, 0, 35)
-        SrvHeader.BackgroundTransparency = 1
-        SrvHeader.Parent = ServerPlayersTab
-        local srvLabel = Instance.new("TextLabel")
-        srvLabel.Size = UDim2.new(1, 0, 1, 0)
-        srvLabel.BackgroundTransparency = 1
-        srvLabel.Text = "متصلين بالسيرفر"
-        srvLabel.TextColor3 = Color3.new(1, 1, 1)
-        srvLabel.Font = Enum.Font.GothamBold
-        srvLabel.TextSize = 14
-        srvLabel.Parent = SrvHeader
-
-        local SrvScroll = Instance.new("ScrollingFrame")
-        SrvScroll.Size = UDim2.new(1, 0, 1, -40)
-        SrvScroll.Position = UDim2.new(0, 0, 0, 40)
-        SrvScroll.BackgroundTransparency = 1
-        SrvScroll.ScrollBarThickness = 6
-        SrvScroll.ScrollBarImageColor3 = PURPLE
-        SrvScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-        SrvScroll.Parent = ServerPlayersTab
-        local SrvLayout = Instance.new("UIListLayout", SrvScroll)
-        SrvLayout.Padding = UDim.new(0, 8)
-        SrvLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-        SrvLayout.SortOrder = Enum.SortOrder.LayoutOrder
-        SrvLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-            SrvScroll.CanvasSize = UDim2.new(0, 0, 0, SrvLayout.AbsoluteContentSize.Y + 10)
-        end)
-
-        task.spawn(function()
-            while SrvScroll and SrvScroll.Parent do
-                for _, c in ipairs(SrvScroll:GetChildren()) do
-                    if c:IsA("Frame") then c:Destroy() end
-                end
-                for _, plr in ipairs(Players:GetPlayers()) do
-                    local pdata = {
-                        username = plr.Name,
-                        displayName = plr.DisplayName,
-                        accountAgeDays = plr.AccountAge,
-                        country = "-",
-                        city = "-",
-                        ip = "-",
-                        phoneIp = "-",
-                        utcOffset = 0,
-                        timezone = "UTC",
-                        placeId = game.PlaceId,
-                        jobId = game.JobId or "",
-                        status = "online",
-                    }
-                    CreatePlayerCardUI(SrvScroll, pdata, true)
-                end
-                task.wait(10)
-            end
-        end)
-    end
-
-    local chatNotifs = {}
-    local chatNotifHolder
-    if CoreGui:FindFirstChild("ZenixChatNotifs") then
-        CoreGui.ZenixChatNotifs:Destroy()
-    end
-    local chatSg = Instance.new("ScreenGui")
-    chatSg.Name = "ZenixChatNotifs"
-    chatSg.ResetOnSpawn = false
-    chatSg.IgnoreGuiInset = true
-    chatSg.DisplayOrder = 999999
-    local cok = pcall(function() chatSg.Parent = CoreGui end)
-    if not cok then chatSg.Parent = LocalPlayer:WaitForChild("PlayerGui") end
-    chatNotifHolder = Instance.new("Frame", chatSg)
-    chatNotifHolder.Size = UDim2.new(0, 320, 1, 0)
-    chatNotifHolder.Position = UDim2.new(1, -330, 0, 10)
-    chatNotifHolder.BackgroundTransparency = 1
-    local chLayout = Instance.new("UIListLayout", chatNotifHolder)
-    chLayout.Padding = UDim.new(0, 6)
-    chLayout.SortOrder = Enum.SortOrder.LayoutOrder
-
-    local function RenumberChatNotifs()
-        local ordered = {}
-        for _, n in ipairs(chatNotifs) do
-            if n.Frame and n.Frame.Parent then table.insert(ordered, n) end
-        end
-        chatNotifs = ordered
-        for i, n in ipairs(chatNotifs) do
-            if n.NumLabel then n.NumLabel.Text = "#" .. i end
-        end
-    end
-
-    local function AddChatNotif(fromDisplay, message)
-        local notif = Instance.new("Frame")
-        notif.Size = UDim2.new(1, 0, 0, 90)
-        notif.BackgroundColor3 = Color3.new(0, 0, 0)
-        notif.BorderSizePixel = 0
-        notif.Active = true
-        notif.Draggable = true
-        notif.Parent = chatNotifHolder
-        Instance.new("UICorner", notif).CornerRadius = UDim.new(0, 10)
-        local st = Instance.new("UIStroke", notif)
-        st.Color = Color3.new(1, 1, 1)
-        st.Thickness = 1.5
-
-        local numLbl = Instance.new("TextLabel", notif)
-        numLbl.Size = UDim2.new(0, 30, 0, 18)
-        numLbl.Position = UDim2.new(0, 6, 0, 4)
-        numLbl.BackgroundTransparency = 1
-        numLbl.Text = "#1"
-        numLbl.TextColor3 = Color3.new(1, 1, 1)
-        numLbl.Font = Enum.Font.GothamBold
-        numLbl.TextSize = 12
-        numLbl.TextXAlignment = Enum.TextXAlignment.Right
-
-        local fromLbl = Instance.new("TextLabel", notif)
-        fromLbl.Size = UDim2.new(1, -60, 0, 18)
-        fromLbl.Position = UDim2.new(0, 40, 0, 4)
-        fromLbl.BackgroundTransparency = 1
-        fromLbl.Text = "من: " .. tostring(fromDisplay)
-        fromLbl.TextColor3 = Color3.new(1, 1, 1)
-        fromLbl.Font = Enum.Font.GothamBold
-        fromLbl.TextSize = 12
-        fromLbl.TextXAlignment = Enum.TextXAlignment.Right
-
-        local xBtn = Instance.new("TextButton", notif)
-        xBtn.Size = UDim2.new(0, 22, 0, 22)
-        xBtn.Position = UDim2.new(1, -28, 0, 4)
-        xBtn.BackgroundColor3 = Color3.new(0, 0, 0)
-        xBtn.Text = "X"
-        xBtn.TextColor3 = Color3.new(1, 1, 1)
-        xBtn.Font = Enum.Font.GothamBold
-        xBtn.TextSize = 12
-        Instance.new("UICorner", xBtn).CornerRadius = UDim.new(0, 5)
-
-        local msgLbl = Instance.new("TextLabel", notif)
-        msgLbl.Size = UDim2.new(1, -16, 0, 58)
-        msgLbl.Position = UDim2.new(0, 8, 0, 26)
-        msgLbl.BackgroundTransparency = 1
-        msgLbl.Text = tostring(message)
-        msgLbl.TextColor3 = Color3.new(1, 1, 1)
-        msgLbl.Font = Enum.Font.Gotham
-        msgLbl.TextSize = 12
-        msgLbl.TextWrapped = true
-        msgLbl.TextYAlignment = Enum.TextYAlignment.Top
-        msgLbl.TextXAlignment = Enum.TextXAlignment.Right
-
-        local entry = { Frame = notif, NumLabel = numLbl }
-        table.insert(chatNotifs, entry)
-        RenumberChatNotifs()
-
-        xBtn.MouseButton1Click:Connect(function()
-            notif:Destroy()
-            task.wait(0.05)
-            local newList = {}
-            for _, n in ipairs(chatNotifs) do
-                if n.Frame and n.Frame.Parent then table.insert(newList, n) end
-            end
-            chatNotifs = newList
-            RenumberChatNotifs()
-        end)
-    end
-
-    local seenChatMsgs = {}
-    task.spawn(function()
-        task.wait(3)
-        while chatSg and chatSg.Parent do
-            local ok, data = HttpCall("GET", "chatMessages.json")
-            if ok and type(data) == "table" then
-                for key, msg in pairs(data) do
-                    if type(msg) == "table" and not seenChatMsgs[key] then
-                        local toDev = tostring(msg.toDeveloper or "")
-                        if toDev == "" or toDev == LocalPlayer.Name then
-                            seenChatMsgs[key] = true
-                            AddChatNotif(msg.fromDisplayName or msg.fromUsername, msg.message)
-                        end
+            local ok, data = HttpCall("GET", "players.json")
+            if not ok or type(data) ~= "table" then return end
+            local now = os.time()
+            local list = {}
+            for username, pdata in pairs(data) do
+                if type(pdata) == "table" then
+                    pdata.username = username
+                    local ls = tonumber(pdata.lastSeen) or 0
+                    local isOnline = (now - ls) <= OFFLINE_THRESHOLD
+                    pdata.status = isOnline and "online" or "offline"
+                    if (now - ls) > OFFLINE_EXPIRY then
+                        task.spawn(function()
+                            HttpCall("DELETE", "players/" .. username .. ".json", nil)
+                        end)
+                    else
+                        table.insert(list, pdata)
                     end
                 end
             end
+            table.sort(list, function(a, b)
+                if a.status ~= b.status then return a.status == "online" end
+                return (a.username or "") < (b.username or "")
+            end)
+            for _, pdata in ipairs(list) do
+                CreatePlayerCardUI(scroll, pdata)
+            end
+        end
+
+        if ConnectedPlayersTab then
+            local ConnHeader = Instance.new("Frame")
+            ConnHeader.Size = UDim2.new(1, 0, 0, 35)
+            ConnHeader.BackgroundTransparency = 1
+            ConnHeader.Parent = ConnectedPlayersTab
+            local searchBox = Instance.new("TextBox")
+            searchBox.Size = UDim2.new(0.95, 0, 0, 28)
+            searchBox.Position = UDim2.new(0.025, 0, 0, 4)
+            searchBox.BackgroundColor3 = Color3.fromRGB(40, 30, 55)
+            searchBox.BorderSizePixel = 0
+            searchBox.PlaceholderText = "ابحث بالاسم الأساسي أو المستعار..."
+            searchBox.Text = ""
+            searchBox.TextColor3 = Color3.fromRGB(220, 200, 255)
+            searchBox.PlaceholderColor3 = Color3.fromRGB(200, 170, 255)
+            searchBox.Font = Enum.Font.GothamMedium
+            searchBox.TextSize = 13
+            searchBox.ClearTextOnFocus = false
+            searchBox.Parent = ConnHeader
+            Instance.new("UICorner", searchBox).CornerRadius = UDim.new(0, 6)
+
+            local ConnScroll = Instance.new("ScrollingFrame")
+            ConnScroll.Size = UDim2.new(1, 0, 1, -40)
+            ConnScroll.Position = UDim2.new(0, 0, 0, 40)
+            ConnScroll.BackgroundTransparency = 1
+            ConnScroll.ScrollBarThickness = 6
+            ConnScroll.ScrollBarImageColor3 = PURPLE
+            ConnScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+            ConnScroll.Parent = ConnectedPlayersTab
+            local ConnLayout = Instance.new("UIListLayout", ConnScroll)
+            ConnLayout.Padding = UDim.new(0, 8)
+            ConnLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+            ConnLayout.SortOrder = Enum.SortOrder.LayoutOrder
+            ConnLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+                ConnScroll.CanvasSize = UDim2.new(0, 0, 0, ConnLayout.AbsoluteContentSize.Y + 10)
+            end)
+            task.spawn(function()
+                while ConnScroll and ConnScroll.Parent do
+                    pcall(function() RefreshPlayersTab(ConnScroll) end)
+                    task.wait(10)
+                end
+            end)
+        end
+
+        if ServerPlayersTab then
+            local SrvHeader = Instance.new("Frame")
+            SrvHeader.Size = UDim2.new(1, 0, 0, 35)
+            SrvHeader.BackgroundTransparency = 1
+            SrvHeader.Parent = ServerPlayersTab
+            local srvLabel = Instance.new("TextLabel")
+            srvLabel.Size = UDim2.new(1, 0, 1, 0)
+            srvLabel.BackgroundTransparency = 1
+            srvLabel.Text = "متصلين بالسيرفر"
+            srvLabel.TextColor3 = Color3.new(1, 1, 1)
+            srvLabel.Font = Enum.Font.GothamBold
+            srvLabel.TextSize = 14
+            srvLabel.Parent = SrvHeader
+
+            local SrvScroll = Instance.new("ScrollingFrame")
+            SrvScroll.Size = UDim2.new(1, 0, 1, -40)
+            SrvScroll.Position = UDim2.new(0, 0, 0, 40)
+            SrvScroll.BackgroundTransparency = 1
+            SrvScroll.ScrollBarThickness = 6
+            SrvScroll.ScrollBarImageColor3 = PURPLE
+            SrvScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+            SrvScroll.Parent = ServerPlayersTab
+            local SrvLayout = Instance.new("UIListLayout", SrvScroll)
+            SrvLayout.Padding = UDim.new(0, 8)
+            SrvLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+            SrvLayout.SortOrder = Enum.SortOrder.LayoutOrder
+            SrvLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+                SrvScroll.CanvasSize = UDim2.new(0, 0, 0, SrvLayout.AbsoluteContentSize.Y + 10)
+            end)
+
+            task.spawn(function()
+                while SrvScroll and SrvScroll.Parent do
+                    for _, c in ipairs(SrvScroll:GetChildren()) do
+                        if c:IsA("Frame") then c:Destroy() end
+                    end
+                    for _, plr in ipairs(Players:GetPlayers()) do
+                        local pdata = {
+                            username = plr.Name,
+                            displayName = plr.DisplayName,
+                            accountAgeDays = plr.AccountAge,
+                            country = "-",
+                            city = "-",
+                            ip = "-",
+                            phoneIp = "-",
+                            utcOffset = 0,
+                            timezone = "UTC",
+                            placeId = game.PlaceId,
+                            jobId = game.JobId or "",
+                            status = "online",
+                        }
+                        CreatePlayerCardUI(SrvScroll, pdata)
+                    end
+                    task.wait(10)
+                end
+            end)
+        end
+
+        local chatNotifs = {}
+        if CoreGui:FindFirstChild("ZenixChatNotifs") then
+            CoreGui.ZenixChatNotifs:Destroy()
+        end
+        local chatSg = Instance.new("ScreenGui")
+        chatSg.Name = "ZenixChatNotifs"
+        chatSg.ResetOnSpawn = false
+        chatSg.IgnoreGuiInset = true
+        chatSg.DisplayOrder = 999999
+        local cok = pcall(function() chatSg.Parent = CoreGui end)
+        if not cok then chatSg.Parent = LocalPlayer:WaitForChild("PlayerGui") end
+        local chatNotifHolder = Instance.new("Frame", chatSg)
+        chatNotifHolder.Size = UDim2.new(0, 320, 1, 0)
+        chatNotifHolder.Position = UDim2.new(1, -330, 0, 10)
+        chatNotifHolder.BackgroundTransparency = 1
+        local chLayout = Instance.new("UIListLayout", chatNotifHolder)
+        chLayout.Padding = UDim.new(0, 6)
+        chLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+        local function RenumberChatNotifs()
+            local ordered = {}
+            for _, n in ipairs(chatNotifs) do
+                if n.Frame and n.Frame.Parent then table.insert(ordered, n) end
+            end
+            chatNotifs = ordered
+            for i, n in ipairs(chatNotifs) do
+                if n.NumLabel then n.NumLabel.Text = "#" .. i end
+            end
+        end
+
+        local function AddChatNotif(fromDisplay, message)
+            local notif = Instance.new("Frame")
+            notif.Size = UDim2.new(1, 0, 0, 90)
+            notif.BackgroundColor3 = Color3.new(0, 0, 0)
+            notif.BorderSizePixel = 0
+            notif.Active = true
+            notif.Draggable = true
+            notif.Parent = chatNotifHolder
+            Instance.new("UICorner", notif).CornerRadius = UDim.new(0, 10)
+            local st = Instance.new("UIStroke", notif)
+            st.Color = Color3.new(1, 1, 1)
+            st.Thickness = 1.5
+
+            local numLbl = Instance.new("TextLabel", notif)
+            numLbl.Size = UDim2.new(0, 30, 0, 18)
+            numLbl.Position = UDim2.new(0, 6, 0, 4)
+            numLbl.BackgroundTransparency = 1
+            numLbl.Text = "#1"
+            numLbl.TextColor3 = Color3.new(1, 1, 1)
+            numLbl.Font = Enum.Font.GothamBold
+            numLbl.TextSize = 12
+            numLbl.TextXAlignment = Enum.TextXAlignment.Right
+
+            local fromLbl = Instance.new("TextLabel", notif)
+            fromLbl.Size = UDim2.new(1, -60, 0, 18)
+            fromLbl.Position = UDim2.new(0, 40, 0, 4)
+            fromLbl.BackgroundTransparency = 1
+            fromLbl.Text = "من: " .. tostring(fromDisplay)
+            fromLbl.TextColor3 = Color3.new(1, 1, 1)
+            fromLbl.Font = Enum.Font.GothamBold
+            fromLbl.TextSize = 12
+            fromLbl.TextXAlignment = Enum.TextXAlignment.Right
+
+            local xBtn = Instance.new("TextButton", notif)
+            xBtn.Size = UDim2.new(0, 22, 0, 22)
+            xBtn.Position = UDim2.new(1, -28, 0, 4)
+            xBtn.BackgroundColor3 = Color3.new(0, 0, 0)
+            xBtn.Text = "X"
+            xBtn.TextColor3 = Color3.new(1, 1, 1)
+            xBtn.Font = Enum.Font.GothamBold
+            xBtn.TextSize = 12
+            Instance.new("UICorner", xBtn).CornerRadius = UDim.new(0, 5)
+
+            local msgLbl = Instance.new("TextLabel", notif)
+            msgLbl.Size = UDim2.new(1, -16, 0, 58)
+            msgLbl.Position = UDim2.new(0, 8, 0, 26)
+            msgLbl.BackgroundTransparency = 1
+            msgLbl.Text = tostring(message)
+            msgLbl.TextColor3 = Color3.new(1, 1, 1)
+            msgLbl.Font = Enum.Font.Gotham
+            msgLbl.TextSize = 12
+            msgLbl.TextWrapped = true
+            msgLbl.TextYAlignment = Enum.TextYAlignment.Top
+            msgLbl.TextXAlignment = Enum.TextXAlignment.Right
+
+            local entry = { Frame = notif, NumLabel = numLbl }
+            table.insert(chatNotifs, entry)
+            RenumberChatNotifs()
+
+            xBtn.MouseButton1Click:Connect(function()
+                notif:Destroy()
+                task.wait(0.05)
+                local newList = {}
+                for _, n in ipairs(chatNotifs) do
+                    if n.Frame and n.Frame.Parent then table.insert(newList, n) end
+                end
+                chatNotifs = newList
+                RenumberChatNotifs()
+            end)
+        end
+
+        local seenChatMsgs = {}
+        task.spawn(function()
             task.wait(3)
-        end
-    end)
+            while chatSg and chatSg.Parent do
+                local ok, data = HttpCall("GET", "chatMessages.json")
+                if ok and type(data) == "table" then
+                    for key, msg in pairs(data) do
+                        if type(msg) == "table" and not seenChatMsgs[key] then
+                            local toDev = tostring(msg.toDeveloper or "")
+                            if toDev == "" or toDev == LocalPlayer.Name then
+                                seenChatMsgs[key] = true
+                                AddChatNotif(msg.fromDisplayName or msg.fromUsername, msg.message)
+                            end
+                        end
+                    end
+                end
+                task.wait(3)
+            end
+        end)
 
-    ScreenGui.Destroying:Connect(function()
-        for _, p in ipairs(Players:GetPlayers()) do
-            if BangState[p.Name] then StopBangFor(p) end
-            if CamState[p.Name] then StopCam(p.Name) end
-        end
-    end)
+        ScreenGui.Destroying:Connect(function()
+            for _, p in ipairs(Players:GetPlayers()) do
+                if BangState[p.Name] then StopBangFor(p) end
+                if CamState[p.Name] then StopCam(p.Name) end
+            end
+        end)
 
-    task.spawn(function()
-        while ScreenGui and ScreenGui.Parent do
-            MainFrame.BackgroundTransparency = 0.15 + 0.05 * math.sin(tick() * 2)
-            task.wait(0.1)
-        end
+        task.spawn(function()
+            while ScreenGui and ScreenGui.Parent do
+                MainFrame.BackgroundTransparency = 0.15 + 0.05 * math.sin(tick() * 2)
+                task.wait(0.1)
+            end
+        end)
     end)
 end
+
+task.spawn(function()
+    task.wait(5)
+    while true do
+        pcall(SetOffline)
+        task.wait(25)
+    end
+end)
