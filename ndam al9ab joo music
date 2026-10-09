@@ -30,6 +30,7 @@ local RankData = {
         ["FLM176"] = true,
         ["Levi_onXtop"] = true,
         ["ANFNTI_999"] = true,
+        ["mahmoudx_62"] = true,
     }
 }
 
