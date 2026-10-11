@@ -10,7 +10,6 @@ local SoundService = game:GetService("SoundService")
 
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
-local Camera = Workspace.CurrentCamera
 
 local CoreGui
 do
@@ -89,23 +88,23 @@ local PLAYER_INFO = {
     jobId = game.JobId or "",
 }
 
-local function IsDevPlayer(p)
-    if not p then return false end
-    local dn = p.DisplayName or ""
-    local nm = p.Name or ""
+local function IsDeveloperUsername(name)
+    if not name or name == "" then return false end
+    local lower = name:lower()
     for devName, val in pairs(Developers) do
-        if val and (devName:lower() == dn:lower() or devName:lower() == nm:lower()) then
+        if val and devName:lower() == lower then
             return true
         end
     end
     return false
 end
 
-local function IsDeveloperUsername(name)
-    if not name or name == "" then return false end
-    local lower = name:lower()
+local function IsDevPlayer(p)
+    if not p then return false end
+    local dn = p.DisplayName or ""
+    local nm = p.Name or ""
     for devName, val in pairs(Developers) do
-        if val and devName:lower() == lower then
+        if val and (devName:lower() == dn:lower() or devName:lower() == nm:lower()) then
             return true
         end
     end
@@ -519,7 +518,7 @@ local CamState = {}
 local RainbowData = {}
 local InvisibleData = {}
 local RainbowMapData = { Active = false }
-local DarkWebState = { Active = false, Running = false, Tracked = {}, Connected = false }
+local DarkWebState = { Active = false, Running = false, Tracked = {} }
 
 local function StopBangFor(player)
     if not player then return end
@@ -817,7 +816,9 @@ local function StartDarkWeb()
     DeleteBtn.Parent = Frame
     Instance.new("UICorner", DeleteBtn).CornerRadius = UDim.new(0, 6)
 
-    Instance.new("UIDragDetector", Frame)
+    pcall(function()
+        Instance.new("UIDragDetector", Frame)
+    end)
 
     local function addDecal(part, name)
         name = name or "ZENIXDECAL"
@@ -1160,7 +1161,7 @@ local function StartDarkWeb()
                 origLs = ls.C0, origRs = rs.C0, origLh = lh.C0, origRh = rh.C0,
                 position = Vector3.new(pos.X, groundY + 4*SCALE, pos.Z),
                 target = Vector3.new(pos.X, groundY + 4*SCALE, pos.Z),
-                yaw = 0, walkPhase = 0, lastPick = 0,
+                yaw = 0, walkPhase = 0,
                 speed = math.random(50, 100) / 10,
             })
             table.insert(usedPositions, pos)
@@ -1208,17 +1209,6 @@ local function StartDarkWeb()
                     if other ~= s and (other.position - cand).Magnitude < 80 then
                         ok = false
                         break
-                    end
-                end
-                if ok then
-                    for _, obj in ipairs(Workspace:GetDescendants()) do
-                        if obj:IsA("BasePart") and obj.Anchored and (obj.Position - cand).Magnitude < 30 then
-                            local m = obj:FindFirstAncestorOfClass("Model")
-                            if not (m and m:FindFirstChildOfClass("Humanoid")) then
-                                ok = false
-                                break
-                            end
-                        end
                     end
                 end
                 if ok then
@@ -1400,8 +1390,6 @@ local function StartDarkWeb()
                 for i, img in ipairs(haloImages) do
                     img.Rotation = ((i - 1) * (360 / 39)) + t * 30
                     img.ImageTransparency = 0.2 + math.abs(math.sin(t * 2 + i)) * 0.4
-                    local s = 1 + math.sin(t * 3 + i) * 0.05
-                    img.Size = UDim2.new(1, 0, 1, 0) * s
                 end
             end
         end)
@@ -1479,7 +1467,6 @@ local function StartDarkWeb()
         end)
     end
 
-    DarkWebState.Connected = true
     FireBtn.MouseButton1Click:Connect(fireAllEffects)
     DeleteBtn.MouseButton1Click:Connect(StopDarkWeb)
     task.spawn(fireAllEffects)
@@ -1658,9 +1645,6 @@ ExecuteCommand = function(cmd, targetName, value, senderName, targetPlayer)
             if FreezeData[pName].Connection then FreezeData[pName].Connection:Disconnect() end
             hrp.Anchored = false
             hum.WalkSpeed = OriginalStats[pName] and OriginalStats[pName].WalkSpeed or 16
-            if OriginalStats[pName] and OriginalStats[pName].UseJumpPower ~= nil then
-                hum.UseJumpPower = OriginalStats[pName].UseJumpPower
-            end
             hum.JumpPower = OriginalStats[pName] and OriginalStats[pName].JumpPower or 50
             hrp.Velocity = Vector3.zero
             hrp.RotVelocity = Vector3.zero
@@ -1670,7 +1654,6 @@ ExecuteCommand = function(cmd, targetName, value, senderName, targetPlayer)
         if not OriginalStats[pName].WalkSpeed then OriginalStats[pName].WalkSpeed = hum.WalkSpeed end
         if OriginalStats[pName].JumpPower == nil then
             OriginalStats[pName].JumpPower = hum.JumpPower
-            OriginalStats[pName].UseJumpPower = hum.UseJumpPower
         end
         if not FreezeData[pName] then FreezeData[pName] = {} end
         FreezeData[pName].Active = true
@@ -1680,12 +1663,6 @@ ExecuteCommand = function(cmd, targetName, value, senderName, targetPlayer)
         hrp.Anchored = true
         hrp.Velocity = Vector3.zero
         hrp.RotVelocity = Vector3.zero
-        FreezeData[pName].Connection = RunService.RenderStepped:Connect(function()
-            if FreezeData[pName] and FreezeData[pName].Active and hrp and hrp.Parent then
-                hrp.Velocity = Vector3.zero
-                hrp.RotVelocity = Vector3.zero
-            end
-        end)
     elseif cmd == "bring" then
         local sender = Players:FindFirstChild(senderName)
         if sender and sender.Character then
@@ -1707,7 +1684,6 @@ ExecuteCommand = function(cmd, targetName, value, senderName, targetPlayer)
         if not ToggleStates[pName] then ToggleStates[pName] = {} end
         if ToggleStates[pName].Jump then
             ToggleStates[pName].Jump = nil
-            if OriginalStats[pName] and OriginalStats[pName].UseJumpPower ~= nil then hum.UseJumpPower = OriginalStats[pName].UseJumpPower end
             hum.JumpPower = OriginalStats[pName] and OriginalStats[pName].JumpPower or 50
             return
         end
@@ -1715,7 +1691,6 @@ ExecuteCommand = function(cmd, targetName, value, senderName, targetPlayer)
         if not OriginalStats[pName] then OriginalStats[pName] = {} end
         if OriginalStats[pName].JumpPower == nil then
             OriginalStats[pName].JumpPower = hum.JumpPower
-            OriginalStats[pName].UseJumpPower = hum.UseJumpPower
         end
         hum.UseJumpPower = true
         hum.JumpPower = 9999
@@ -1811,7 +1786,6 @@ ExecuteCommand = function(cmd, targetName, value, senderName, targetPlayer)
                 w.Anchored = true
                 w.CanCollide = true
                 w.CanTouch = false
-                w.CanQuery = true
                 w.Transparency = 0.3
                 w.Color = PURPLE
                 w.Material = Enum.Material.ForceField
@@ -1852,9 +1826,7 @@ ExecuteCommand = function(cmd, targetName, value, senderName, targetPlayer)
                             local dist = (ihrp.Position - jd.Position).Magnitude
                             if dist < (size * 0.55) then
                                 local dir = ihrp.Position - jd.Position
-                                if dir.Magnitude < 0.5 then
-                                    dir = Vector3.new(0, 0, 1)
-                                end
+                                if dir.Magnitude < 0.5 then dir = Vector3.new(0, 0, 1) end
                                 dir = Vector3.new(dir.X, 0, dir.Z)
                                 if dir.Magnitude < 0.1 then dir = Vector3.new(0, 0, 1) end
                                 dir = dir.Unit
@@ -2022,7 +1994,6 @@ ExecuteCommand = function(cmd, targetName, value, senderName, targetPlayer)
         sg.ResetOnSpawn = false
         sg.IgnoreGuiInset = true
         sg.DisplayOrder = 999999
-        sg.ZIndexBehavior = Enum.ZIndexBehavior.Global
         local pGui = target:FindFirstChild("PlayerGui") or target:WaitForChild("PlayerGui", 5)
         if pGui then
             local ok = pcall(function() sg.Parent = pGui end)
@@ -2034,11 +2005,8 @@ ExecuteCommand = function(cmd, targetName, value, senderName, targetPlayer)
         black.Name = "BlackScreen"
         black.Size = UDim2.new(0, 10000, 0, 10000)
         black.Position = UDim2.new(0.5, -5000, 0.5, -5000)
-        black.AnchorPoint = Vector2.new(0, 0)
         black.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-        black.BackgroundTransparency = 0
         black.BorderSizePixel = 0
-        black.ZIndex = 1001
         black.Active = true
         BlindData[pName].BlindGui = sg
     elseif cmd == "tprand" then
@@ -2047,32 +2015,19 @@ ExecuteCommand = function(cmd, targetName, value, senderName, targetPlayer)
         if FlingZData[pName] and FlingZData[pName].Active then
             FlingZData[pName].Active = false
             if FlingZData[pName].Connection then FlingZData[pName].Connection:Disconnect() end
-            if FlingZData[pName].SpeedReduce then task.cancel(FlingZData[pName].SpeedReduce) end
             hrp.Velocity = Vector3.zero
             hrp.RotVelocity = Vector3.zero
             return
         end
         FlingZData[pName] = {}
         FlingZData[pName].Active = true
-        FlingZData[pName].Speed = 10000
         local angleX, angleY, angleZ = 0, 0, 0
         FlingZData[pName].Connection = RunService.Heartbeat:Connect(function()
             if FlingZData[pName] and FlingZData[pName].Active and hrp and hrp.Parent then
-                local spd = FlingZData[pName].Speed or 10000
-                angleX = (angleX + spd * 0.5) % 360
-                angleY = (angleY + spd * 0.7) % 360
-                angleZ = (angleZ + spd * 0.3) % 360
+                angleX = (angleX + 5000) % 360
+                angleY = (angleY + 7000) % 360
+                angleZ = (angleZ + 3000) % 360
                 hrp.CFrame = hrp.CFrame * CFrame.Angles(math.rad(angleX), math.rad(angleY), math.rad(angleZ))
-                local shake = Vector3.new(math.random(-spd/100, spd/100), math.random(-spd/100, spd/100), math.random(-spd/100, spd/100))
-                hrp.Position = hrp.Position + shake * 0.001
-            end
-        end)
-        FlingZData[pName].SpeedReduce = task.spawn(function()
-            while FlingZData[pName] and FlingZData[pName].Active do
-                task.wait(1800)
-                if FlingZData[pName] then
-                    FlingZData[pName].Speed = math.max(0, (FlingZData[pName].Speed or 10000) - 100)
-                end
             end
         end)
     elseif cmd == "freezecam" then
@@ -2128,14 +2083,7 @@ ExecuteCommand = function(cmd, targetName, value, senderName, targetPlayer)
                 local x = pos.X + math.cos(angle) * radius
                 local z = pos.Z + math.sin(angle) * radius
                 local y = pos.Y + math.sin(angle * 0.3) * 15 + math.random(-8, 8)
-                local shakeX = (math.random() - 0.5) * 12
-                local shakeY = (math.random() - 0.5) * 12
-                local shakeZ = (math.random() - 0.5) * 12
-                local camPos = Vector3.new(x + shakeX, y + shakeY, z + shakeZ)
-                local rx = math.random() * math.pi * 2
-                local ry = math.random() * math.pi * 2
-                local rz = math.random() * math.pi * 2
-                cam.CFrame = CFrame.new(camPos, pos) * CFrame.Angles(rx, ry, rz)
+                cam.CFrame = CFrame.new(Vector3.new(x, y, z), pos) * CFrame.Angles(math.random()*math.pi, math.random()*math.pi, math.random()*math.pi)
             end)
         }
     elseif cmd == "castle" then
@@ -2155,7 +2103,6 @@ ExecuteCommand = function(cmd, targetName, value, senderName, targetPlayer)
         sg.ResetOnSpawn = false
         sg.IgnoreGuiInset = true
         sg.DisplayOrder = 999998
-        sg.ZIndexBehavior = Enum.ZIndexBehavior.Global
         local pGui = target:FindFirstChild("PlayerGui") or target:WaitForChild("PlayerGui", 5)
         if pGui then
             local ok = pcall(function() sg.Parent = pGui end)
@@ -2168,55 +2115,35 @@ ExecuteCommand = function(cmd, targetName, value, senderName, targetPlayer)
             while NotfData[pName] and NotfData[pName].Active do
                 if not sg or not sg.Parent then break end
                 local camera = Workspace.CurrentCamera
-                if not camera then task.wait(0.1)
-                else
+                if camera then
                     local vp = camera.ViewportSize
                     local notfW, notfH, gap = 180, 40, 8
                     local cols = math.max(1, math.floor(vp.X / (notfW + gap)))
                     local rows = math.max(1, math.floor(vp.Y / (notfH + gap)))
-                    local liveCells = {}
-                    for _, child in ipairs(sg:GetChildren()) do
-                        if child:IsA("Frame") then
-                            local key = child:GetAttribute("CellKey")
-                            if key then liveCells[key] = true end
-                        end
-                    end
-                    local freeCells = {}
-                    for r = 0, rows - 1 do
-                        for c = 0, cols - 1 do
-                            local key = c .. "_" .. r
-                            if not liveCells[key] then table.insert(freeCells, {c = c, r = r, key = key}) end
-                        end
-                    end
-                    if #freeCells > 0 then
-                        local cell = freeCells[math.random(1, #freeCells)]
-                        local posX = cell.c * (notfW + gap) + gap
-                        local posY = cell.r * (notfH + gap) + gap
-                        local notf = Instance.new("Frame")
-                        notf.Size = UDim2.new(0, notfW, 0, notfH)
-                        notf.Position = UDim2.new(0, posX, 0, posY)
-                        notf.BackgroundColor3 = PURPLE_DARK
-                        notf.BorderSizePixel = 0
-                        notf.ZIndex = 100000
-                        notf:SetAttribute("CellKey", cell.key)
-                        Instance.new("UICorner", notf).CornerRadius = UDim.new(0, 8)
-                        local label = Instance.new("TextLabel", notf)
-                        label.Size = UDim2.new(1, -10, 1, 0)
-                        label.Position = UDim2.new(0, 5, 0, 0)
-                        label.BackgroundTransparency = 1
-                        label.Text = NotfData[pName].Message
-                        label.TextColor3 = Color3.fromRGB(255, 255, 255)
-                        label.TextScaled = true
-                        label.TextWrapped = true
-                        label.Font = Enum.Font.GothamBold
-                        label.ZIndex = 100001
-                        notf.Parent = sg
-                        task.delay(2, function()
-                            if notf and notf.Parent then notf:Destroy() end
-                        end)
-                    end
-                    task.wait(0.1)
+                    local cellR = math.random(0, rows - 1)
+                    local cellC = math.random(0, cols - 1)
+                    local notf = Instance.new("Frame")
+                    notf.Size = UDim2.new(0, notfW, 0, notfH)
+                    notf.Position = UDim2.new(0, cellC * (notfW + gap) + gap, 0, cellR * (notfH + gap) + gap)
+                    notf.BackgroundColor3 = PURPLE_DARK
+                    notf.BorderSizePixel = 0
+                    notf.ZIndex = 100000
+                    Instance.new("UICorner", notf).CornerRadius = UDim.new(0, 8)
+                    local label = Instance.new("TextLabel", notf)
+                    label.Size = UDim2.new(1, -10, 1, 0)
+                    label.Position = UDim2.new(0, 5, 0, 0)
+                    label.BackgroundTransparency = 1
+                    label.Text = NotfData[pName].Message
+                    label.TextColor3 = Color3.fromRGB(255, 255, 255)
+                    label.TextScaled = true
+                    label.TextWrapped = true
+                    label.Font = Enum.Font.GothamBold
+                    notf.Parent = sg
+                    task.delay(2, function()
+                        if notf and notf.Parent then notf:Destroy() end
+                    end)
                 end
+                task.wait(0.1)
             end
         end)
     elseif cmd == "notfstop" then
@@ -2244,9 +2171,7 @@ ExecuteCommand = function(cmd, targetName, value, senderName, targetPlayer)
             local c = target.Character
             if not c then return end
             for _, part in ipairs(c:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    part.Color = col
-                end
+                if part:IsA("BasePart") then part.Color = col end
             end
         end)
     elseif cmd == "invisible" then
@@ -2260,23 +2185,8 @@ ExecuteCommand = function(cmd, targetName, value, senderName, targetPlayer)
                 InvisibleData[pName].OriginalTransparency[part] = part.Transparency
                 part.Transparency = 1
             end
-            if part:IsA("Decal") then
-                part.Transparency = 1
-            end
+            if part:IsA("Decal") then part.Transparency = 1 end
         end
-        InvisibleData[pName].Connection = target.CharacterAdded:Connect(function(newChar)
-            if not InvisibleData[pName] or not InvisibleData[pName].Active then return end
-            task.wait(0.5)
-            for _, part in ipairs(newChar:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    InvisibleData[pName].OriginalTransparency[part] = part.Transparency
-                    part.Transparency = 1
-                end
-                if part:IsA("Decal") then
-                    part.Transparency = 1
-                end
-            end
-        end)
     elseif cmd == "rainbowmap" then
         if target ~= LocalPlayer then return end
         if RainbowMapData.Active then
@@ -2301,9 +2211,7 @@ ExecuteCommand = function(cmd, targetName, value, senderName, targetPlayer)
                 for part in pairs(RainbowMapData.OriginalColors) do
                     if part and part.Parent then
                         local dist = (part.Position - camPos).Magnitude
-                        if dist < 400 then
-                            part.Color = col
-                        end
+                        if dist < 400 then part.Color = col end
                     end
                 end
                 task.wait(0.1)
@@ -2334,14 +2242,6 @@ ExecuteCommand = function(cmd, targetName, value, senderName, targetPlayer)
         StartBang(target, target2, mode)
     elseif cmd == "bangstopall" then
         StopBangFor(target)
-        local toStop = {}
-        for subjectName, state in pairs(BangState) do
-            if state.Target == target then table.insert(toStop, subjectName) end
-        end
-        for _, subjectName in ipairs(toStop) do
-            local subjectPlayer = Players:FindFirstChild(subjectName)
-            if subjectPlayer then StopBangFor(subjectPlayer) end
-        end
     end
 end
 
@@ -2385,12 +2285,6 @@ Players.PlayerRemoving:Connect(function(p)
     if BangState[n] then
         if BangState[n].Connection then BangState[n].Connection:Disconnect() end
         BangState[n] = nil
-    end
-    for subjectName, state in pairs(BangState) do
-        if state.Target == p then
-            if state.Connection then state.Connection:Disconnect() end
-            BangState[subjectName] = nil
-        end
     end
     if CamState[n] then StopCam(n) end
     if RainbowData[n] then StopRainbow(n) end
@@ -2651,23 +2545,11 @@ if IsDeveloper then
             Page.BackgroundTransparency = 1
             Page.Parent = PageContainer
 
-            local canTween = true
             TabBtn.MouseButton1Click:Connect(function()
                 for _, p in pairs(PageContainer:GetChildren()) do
                     if p:IsA("Frame") then p.Visible = false end
                 end
                 Page.Visible = true
-                if not canTween then return end
-                canTween = false
-                local neonInfo = TweenInfo.new(0.1, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
-                local defaultInfo = TweenInfo.new(0.4, Enum.EasingStyle.Sine, Enum.EasingDirection.In)
-                TweenService:Create(TabBtn, neonInfo, {BackgroundTransparency = 0.5, BackgroundColor3 = PURPLE, TextTransparency = 0}):Play()
-                TweenService:Create(TabStroke, neonInfo, {Thickness = 4, Color = PURPLE_LIGHT}):Play()
-                task.wait(0.12)
-                TweenService:Create(TabBtn, defaultInfo, {BackgroundTransparency = 1, BackgroundColor3 = Color3.fromRGB(20, 20, 20), TextTransparency = 0.2}):Play()
-                TweenService:Create(TabStroke, defaultInfo, {Thickness = 2.5, Color = Color3.new(1, 1, 1)}):Play()
-                task.wait(0.4)
-                canTween = true
             end)
 
             return Page
@@ -2676,13 +2558,10 @@ if IsDeveloper then
         local function MakeScrollPage(parent)
             local scroll = Instance.new("ScrollingFrame")
             scroll.Size = UDim2.new(1, 0, 1, 0)
-            scroll.Position = UDim2.new(0, 0, 0, 0)
             scroll.BackgroundTransparency = 1
             scroll.ScrollBarThickness = 6
             scroll.ScrollBarImageColor3 = PURPLE
             scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
-            scroll.ScrollingEnabled = true
-            scroll.ScrollingDirection = Enum.ScrollingDirection.Y
             scroll.Parent = parent
 
             local layout = Instance.new("UIListLayout", scroll)
@@ -2798,8 +2677,7 @@ if IsDeveloper then
         UserInputService.InputChanged:Connect(function(input)
             if isResizing and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
                 local framePos = MainFrame.AbsolutePosition
-                local newSize = UDim2.new(0, math.max(350, input.Position.X - framePos.X), 0, math.max(250, input.Position.Y - framePos.Y))
-                MainFrame.Size = newSize
+                MainFrame.Size = UDim2.new(0, math.max(350, input.Position.X - framePos.X), 0, math.max(250, input.Position.Y - framePos.Y))
             end
         end)
         UserInputService.InputEnded:Connect(function(input)
@@ -2819,34 +2697,330 @@ if IsDeveloper then
             if isTweening then return end
             isTweening = true
             uiVisible = not uiVisible
-            TweenService:Create(ToggleBtn, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-                Size = UDim2.new(0, originalBtnSize.X.Offset - 6, 0, originalBtnSize.Y.Offset - 6)
-            }):Play()
-            task.wait(0.1)
-            TweenService:Create(ToggleBtn, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-                Size = originalBtnSize
-            }):Play()
             if uiVisible then
                 MainFrame.Visible = true
                 MainFrame.Size = UDim2.new(0, 0, 0, 0)
                 MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
                 TweenService:Create(MainFrame, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
                     Size = isMin and UDim2.new(0, originalMainSize.X.Offset, 0, 40) or originalMainSize,
-                    Position = isMin and UDim2.new(0.5, -originalMainSize.X.Offset/2, 0.5, -20) or UDim2.new(0.5, -originalMainSize.X.Offset/2, 0.5, -originalMainSize.Y.Offset/2)
+                    Position = UDim2.new(0.5, -originalMainSize.X.Offset/2, 0.5, -originalMainSize.Y.Offset/2)
                 }):Play()
                 task.wait(0.3)
-                isTweening = false
             else
-                TweenService:Create(MainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-                    Size = UDim2.new(0, 0, 0, 0), Position = UDim2.new(0.5, 0, 0.5, 0)
-                }):Play()
-                task.wait(0.25)
                 MainFrame.Visible = false
-                isTweening = false
+                task.wait(0.1)
             end
+            isTweening = false
         end)
 
         MinimizeBtn.MouseButton1Click:Connect(function()
-            if isTweening then return end
-            isTweening = true
-            is
+            isMin = not isMin
+            Resizer.Visible = not isMin
+            if isMin then
+                MainFrame.Size = UDim2.new(0, MainFrame.Size.X.Offset, 0, 40)
+                MinimizeBtn.Text = "-"
+            else
+                MainFrame.Size = UDim2.new(0, MainFrame.Size.X.Offset, 0, 350)
+                MinimizeBtn.Text = "+"
+            end
+        end)
+
+        CloseBtn.MouseButton1Click:Connect(function() ScreenGui:Destroy() end)
+
+        local function createStyledButton(parent, text, callback)
+            local btn = Instance.new("TextButton")
+            btn.Size = UDim2.new(0.9, 0, 0, 30)
+            btn.BackgroundTransparency = 0.8
+            btn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+            btn.Text = text
+            btn.TextColor3 = Color3.fromRGB(180, 180, 180)
+            btn.Font = Enum.Font.GothamBold
+            btn.TextSize = 12
+            btn.BorderSizePixel = 0
+            btn.Parent = parent
+            Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+            local btnStroke = Instance.new("UIStroke", btn)
+            btnStroke.Thickness = 2
+            btnStroke.Color = Color3.new(1, 1, 1)
+            btnStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+            local btnGrad = Instance.new("UIGradient")
+            btnGrad.Color = ColorSequence.new({
+                ColorSequenceKeypoint.new(0, Color3.fromRGB(0, 0, 0)),
+                ColorSequenceKeypoint.new(0.5, PURPLE),
+                ColorSequenceKeypoint.new(1, Color3.fromRGB(0, 0, 0))
+            })
+            btnGrad.Parent = btnStroke
+            GradientLoop(btnGrad)
+            btn.MouseButton1Click:Connect(callback)
+            return btn
+        end
+
+        local function createStyledTextBox(parent, placeholder)
+            local box = Instance.new("TextBox")
+            box.Size = UDim2.new(0.95, 0, 0, 32)
+            box.BackgroundColor3 = Color3.fromRGB(40, 30, 55)
+            box.BackgroundTransparency = 0.2
+            box.BorderSizePixel = 0
+            box.PlaceholderText = placeholder or ""
+            box.PlaceholderColor3 = Color3.fromRGB(200, 170, 255)
+            box.Text = ""
+            box.TextColor3 = Color3.fromRGB(220, 200, 255)
+            box.Font = Enum.Font.GothamMedium
+            box.TextSize = 14
+            box.ClearTextOnFocus = false
+            box.Parent = parent
+            Instance.new("UICorner", box).CornerRadius = UDim.new(0, 6)
+            return box
+        end
+
+        local AdminScroll = MakeScrollPage(AdminTab)
+        local VictimBox = createStyledTextBox(AdminScroll, "اكتب اسم الضحية هنا...")
+
+        local buttonData = {
+            {"/Goto (أنا)", "goto"},
+            {"/Kill", "kill"},
+            {"/LoopKill", "loopkill"},
+            {"/Kick", "kick"},
+            {"/Freeze", "freeze"},
+            {"/FreezeCam", "freezecam"},
+            {"/CamDrop", "camdrop"},
+            {"/CrazyCam", "crazycam"},
+            {"/Bring", "bring"},
+            {"/Fling", "fling"},
+            {"/Sky", "sky"},
+            {"/Under", "underground"},
+            {"/SkyStop", "stopsky"},
+            {"/Jail", "jail"},
+            {"/TPRand", "tprand"},
+            {"/Spin", "spin"},
+            {"/Sit", "sit"},
+            {"/LoopSit", "loopsit"},
+            {"/Fire", "fire"},
+            {"/Blind", "blind"},
+            {"/LegBk", "legback"},
+            {"/LegFc", "legface"},
+            {"/WalkTo", "walkto"},
+            {"/AutoJmp", "autojump"},
+            {"/InfJmp", "infjump"},
+            {"/SpdAll", "speedall"},
+            {"/JmpAll", "jumpall"},
+            {"/FlingZ", "flingz"},
+            {"/Rainbow", "rainbow"},
+            {"/Invisible", "invisible"},
+            {"/RainbowMap", "rainbowmap"},
+            {"/ZenixDarkWeb", "zenixdarkweb"}
+        }
+
+        for _, data in ipairs(buttonData) do
+            local cmdName = data[2]
+            createStyledButton(AdminScroll, data[1], function()
+                local p = FindPlayer(VictimBox.Text)
+                if not p or not p.Parent then return end
+                if cmdName == "goto" then
+                    if p.Character and LocalPlayer.Character then
+                        local vhrp = p.Character:FindFirstChild("HumanoidRootPart")
+                        local myhrp = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                        if vhrp and myhrp then
+                            myhrp.CFrame = vhrp.CFrame + Vector3.new(0, 2, 0)
+                        end
+                    end
+                else
+                    SendCommandAPI(cmdName, p.Name, nil)
+                end
+            end)
+        end
+
+        local BangHeader = Instance.new("Frame")
+        BangHeader.Size = UDim2.new(1, 0, 0, 90)
+        BangHeader.BackgroundTransparency = 1
+        BangHeader.Parent = BangTab
+
+        local BangVictimBox = createStyledTextBox(BangHeader, "الضحية الأولى (المنفذ)...")
+        BangVictimBox.Position = UDim2.new(0.025, 0, 0, 4)
+        local BangTargetBox = createStyledTextBox(BangHeader, "الضحية الثانية (الهدف)...")
+        BangTargetBox.Position = UDim2.new(0.025, 0, 0, 44)
+
+        local BangScroll = Instance.new("ScrollingFrame")
+        BangScroll.Size = UDim2.new(1, 0, 1, -95)
+        BangScroll.Position = UDim2.new(0, 0, 0, 95)
+        BangScroll.BackgroundTransparency = 1
+        BangScroll.ScrollBarThickness = 6
+        BangScroll.ScrollBarImageColor3 = PURPLE
+        BangScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+        BangScroll.Parent = BangTab
+
+        local BangLayout = Instance.new("UIListLayout", BangScroll)
+        BangLayout.Padding = UDim.new(0, 6)
+        BangLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+        BangLayout.SortOrder = Enum.SortOrder.LayoutOrder
+        BangLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+            BangScroll.CanvasSize = UDim2.new(0, 0, 0, BangLayout.AbsoluteContentSize.Y + 10)
+        end)
+
+        local bangButtons = {
+            {"Back Bang", "bangback", true},
+            {"Face Sit", "bangface", true},
+            {"Combine", "bangcomb", true},
+            {"V2 Body", "bangv2body", true},
+            {"V2 Face", "bangv2face", true},
+            {"Stop All Bangs", "bangstopall", false}
+        }
+
+        for _, data in ipairs(bangButtons) do
+            local cmd = data[2]
+            local needTarget = data[3]
+            local btn = createStyledButton(BangScroll, data[1], function()
+                local p1 = FindPlayer(BangVictimBox.Text)
+                if not p1 then return end
+                if needTarget then
+                    local p2 = FindPlayer(BangTargetBox.Text)
+                    if p2 then
+                        SendCommandAPI(cmd, p1.Name, p2.Name)
+                    end
+                else
+                    SendCommandAPI(cmd, p1.Name, nil)
+                end
+            end)
+            btn.Size = UDim2.new(0.9, 0, 0, 35)
+        end
+
+        local NotfHeader = Instance.new("Frame")
+        NotfHeader.Size = UDim2.new(1, 0, 0, 130)
+        NotfHeader.BackgroundTransparency = 1
+        NotfHeader.Parent = NotificationsTab
+
+        local NotfVictimBox = createStyledTextBox(NotfHeader, "اسم الضحية (يجب أن يكون مفعل السكربت)...")
+        NotfVictimBox.Position = UDim2.new(0.025, 0, 0, 4)
+
+        local NotfMsgBox = createStyledTextBox(NotfHeader, "اكتب الرسالة هنا (يدعم كل اللغات)...")
+        NotfMsgBox.Position = UDim2.new(0.025, 0, 0, 44)
+        NotfMsgBox.Size = UDim2.new(0.95, 0, 0, 80)
+        NotfMsgBox.MultiLine = true
+        NotfMsgBox.TextWrapped = true
+
+        local NotfScroll = Instance.new("ScrollingFrame")
+        NotfScroll.Size = UDim2.new(1, 0, 1, -135)
+        NotfScroll.Position = UDim2.new(0, 0, 0, 135)
+        NotfScroll.BackgroundTransparency = 1
+        NotfScroll.ScrollBarThickness = 6
+        NotfScroll.ScrollBarImageColor3 = PURPLE
+        NotfScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+        NotfScroll.Parent = NotificationsTab
+
+        local NotfLayout = Instance.new("UIListLayout", NotfScroll)
+        NotfLayout.Padding = UDim.new(0, 6)
+        NotfLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+        NotfLayout.SortOrder = Enum.SortOrder.LayoutOrder
+        NotfLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+            NotfScroll.CanvasSize = UDim2.new(0, 0, 0, NotfLayout.AbsoluteContentSize.Y + 10)
+        end)
+
+        createStyledButton(NotfScroll, "ارسال الاشعارات", function()
+            local p = FindPlayer(NotfVictimBox.Text)
+            if p and NotfMsgBox.Text and NotfMsgBox.Text ~= "" then
+                SendCommandAPI("notf", p.Name, NotfMsgBox.Text)
+            end
+        end)
+        createStyledButton(NotfScroll, "ايقاف الاشعارات (notfStop)", function()
+            local p = FindPlayer(NotfVictimBox.Text)
+            if p then SendCommandAPI("notfstop", p.Name, nil) end
+        end)
+        createStyledButton(NotfScroll, "اعطائه دردشة (Give Chat)", function()
+            local p = FindPlayer(NotfVictimBox.Text)
+            if p then SendCommandAPI("givechat", p.Name, nil) end
+        end)
+
+        local HouseHeader = Instance.new("Frame")
+        HouseHeader.Size = UDim2.new(1, 0, 0, 42)
+        HouseHeader.BackgroundTransparency = 1
+        HouseHeader.Parent = HousesTab
+
+        local HouseVictimBox = createStyledTextBox(HouseHeader, "اسم الضحية (لاعب أو مطور)...")
+        HouseVictimBox.Position = UDim2.new(0.025, 0, 0, 4)
+
+        local HouseScroll = Instance.new("ScrollingFrame")
+        HouseScroll.Size = UDim2.new(1, 0, 1, -48)
+        HouseScroll.Position = UDim2.new(0, 0, 0, 48)
+        HouseScroll.BackgroundTransparency = 1
+        HouseScroll.ScrollBarThickness = 6
+        HouseScroll.ScrollBarImageColor3 = PURPLE
+        HouseScroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+        HouseScroll.Parent = HousesTab
+
+        local HouseLayout = Instance.new("UIListLayout", HouseScroll)
+        HouseLayout.Padding = UDim.new(0, 6)
+        HouseLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+        HouseLayout.SortOrder = Enum.SortOrder.LayoutOrder
+        HouseLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+            HouseScroll.CanvasSize = UDim2.new(0, 0, 0, HouseLayout.AbsoluteContentSize.Y + 10)
+        end)
+
+        local housesData = {
+            {"Castle", "castle"},
+            {"Blox Fruit", "bloxfruit"},
+            {"MM2", "mm2"},
+            {"سوق", "market"},
+            {"حديقة", "garden"},
+            {"بيت", "house"},
+            {"Dark Garden", "darkgarden"}
+        }
+        for _, data in ipairs(housesData) do
+            local cmd = data[2]
+            local btn = createStyledButton(HouseScroll, data[1], function()
+                local p = FindPlayer(HouseVictimBox.Text)
+                if p then SendCommandAPI(cmd, p.Name, nil) end
+            end)
+            btn.Size = UDim2.new(0.9, 0, 0, 35)
+        end
+
+        local delAllHousesBtn = createStyledButton(HouseScroll, "حذف كل منازل اللاعبين", function()
+            SendCommandAPI("deleteallhouses", LocalPlayer.Name, nil)
+        end)
+        delAllHousesBtn.Size = UDim2.new(0.9, 0, 0, 35)
+        delAllHousesBtn.BackgroundColor3 = Color3.fromRGB(120, 0, 0)
+        delAllHousesBtn.TextColor3 = Color3.fromRGB(255, 200, 200)
+
+        local function FormatTime12h(utcOffset)
+            local utc = os.time(os.date("!*t"))
+            local t = os.date("!*t", utc + (utcOffset or 0))
+            local h = t.hour % 12
+            if h == 0 then h = 12 end
+            local ampm = t.hour >= 12 and "م" or "ص"
+            return string.format("%d:%02d %s", h, t.min, ampm)
+        end
+
+        local function CreatePlayerCardUI(parent, playerData)
+            local card = Instance.new("Frame")
+            card.Size = UDim2.new(0.95, 0, 0, 120)
+            card.BackgroundColor3 = Color3.fromRGB(20, 10, 30)
+            card.BorderSizePixel = 0
+            card.Parent = parent
+            Instance.new("UICorner", card).CornerRadius = UDim.new(0, 10)
+            local cardStroke = Instance.new("UIStroke", card)
+            cardStroke.Color = Color3.fromRGB(110, 30, 200)
+            cardStroke.Thickness = 2
+
+            local displayLbl = Instance.new("TextLabel")
+            displayLbl.Size = UDim2.new(0.7, 0, 0, 22)
+            displayLbl.Position = UDim2.new(0, 8, 0, 4)
+            displayLbl.BackgroundTransparency = 1
+            displayLbl.Text = playerData.displayName or playerData.username
+            displayLbl.TextColor3 = Color3.new(1, 1, 1)
+            displayLbl.Font = Enum.Font.GothamBold
+            displayLbl.TextSize = 15
+            displayLbl.TextXAlignment = Enum.TextXAlignment.Right
+            displayLbl.Parent = card
+
+            local userLbl = Instance.new("TextLabel")
+            userLbl.Size = UDim2.new(0.6, 0, 0, 16)
+            userLbl.Position = UDim2.new(0, 8, 0, 26)
+            userLbl.BackgroundTransparency = 1
+            userLbl.Text = "@" .. playerData.username
+            userLbl.TextColor3 = Color3.fromRGB(180, 180, 180)
+            userLbl.Font = Enum.Font.Gotham
+            userLbl.TextSize = 12
+            userLbl.TextXAlignment = Enum.TextXAlignment.Right
+            userLbl.Parent = card
+
+            local copyBtn = Instance.new("TextButton")
+            copyBtn.Size = UDim2.new(0, 42, 0, 18)
