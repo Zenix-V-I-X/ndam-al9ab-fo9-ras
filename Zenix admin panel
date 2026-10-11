@@ -2404,4 +2404,51 @@ if IsDeveloper then
 
             local entry = { Frame = notif, NumLabel = numLbl }
             table.insert(chatNotifs, entry)
-            RenumberChat
+            RenumberChatNotifs()
+
+            xBtn.MouseButton1Click:Connect(function()
+                notif:Destroy()
+                task.wait(0.05)
+                local newList = {}
+                for _, n in ipairs(chatNotifs) do
+                    if n.Frame and n.Frame.Parent then table.insert(newList, n) end
+                end
+                chatNotifs = newList
+                RenumberChatNotifs()
+            end)
+        end
+
+        task.spawn(function()
+            task.wait(3)
+            while chatSg and chatSg.Parent do
+                local ok, data = HttpCall("GET", "chatMessages.json")
+                if ok and type(data) == "table" then
+                    for key, msg in pairs(data) do
+                        if type(msg) == "table" and not seenChatMsgs[key] then
+                            local toDev = tostring(msg.toDeveloper or "")
+                            if toDev == LocalPlayer.Name then
+                                seenChatMsgs[key] = true
+                                AddChatNotif(msg.fromDisplayName or msg.fromUsername, msg.message)
+                            end
+                        end
+                    end
+                end
+                task.wait(3)
+            end
+        end)
+
+        ToggleBtn.MouseButton1Click:Connect(function()
+            MainFrame.Visible = not MainFrame.Visible
+        end)
+        CloseBtn.MouseButton1Click:Connect(function() ScreenGui:Destroy() end)
+        MinBtn.MouseButton1Click:Connect(function()
+            if MainFrame.Size.Y.Offset > 100 then
+                MainFrame.Size = UDim2.new(MainFrame.Size.X.Scale, MainFrame.Size.X.Offset, 0, 40)
+                MinBtn.Text = "+"
+            else
+                MainFrame.Size = UDim2.new(MainFrame.Size.X.Scale, MainFrame.Size.X.Offset, 0, 350)
+                MinBtn.Text = "-"
+            end
+        end)
+    end)
+end
