@@ -20,8 +20,8 @@ local PURPLE = Color3.fromRGB(160, 60, 255)
 local PURPLE_DARK = Color3.fromRGB(110, 30, 200)
 local BG_DARK = Color3.fromRGB(15, 5, 25)
 
-local FIREBASE_URL = "https://zenix-dark-joker-default-rtdb.firebaseio.com/"
-local SECRET_TOKEN = "pBvFVnW85uzX99DdbXaXefSxIgWpafbzPDIy0h3R"
+local FIREBASE_URL = "https://zenix-admin-panel-default-rtdb.firebaseio.com/"
+local SECRET_TOKEN = "CY3dPvLnSwxEYdvTIdrneWXsbdMYN5A0Y954KNyH"
 local POLL_INTERVAL = 1
 local GLOBAL_DELAY = 1
 local TIMESTAMP_TOLERANCE = 5
