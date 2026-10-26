@@ -1,6 +1,4 @@
 local Players = game:GetService("Players")
-local TweenService = game:GetService("TweenService")
-local CoreGui = game:GetService("CoreGui")
 local RunService = game:GetService("RunService")
 
 local lp = Players.LocalPlayer
@@ -83,14 +81,20 @@ local function CheckEligibility(Player)
     end
 end
 
-local function ApplyRank(Player, Character)
+local function ApplyRank(Player)
     local Data = RecognizedPlayers[Player]
     if not Data then return end
+
+    local Character = Player.Character
+    if not Character then return end
 
     local Head = Character:WaitForChild("Head", 5)
     if not Head then return end
 
-    if Character:FindFirstChild("RoyalTag") then return end
+    local existingTag = Character:FindFirstChild("RoyalTag")
+    if existingTag then
+        existingTag:Destroy()
+    end
 
     local Billboard = Instance.new("BillboardGui")
     Billboard.Name = "RoyalTag"
@@ -152,15 +156,53 @@ local function SetupPlayer(Player)
 
     if RecognizedPlayers[Player] then
         Player.CharacterAdded:Connect(function(Character)
-            task.wait(0.1)
-            ApplyRank(Player, Character)
+            Character:WaitForChild("Head", 10)
+            task.wait(0.3)
+            ApplyRank(Player)
+            
+            local humanoid = Character:WaitForChild("Humanoid", 10)
+            if humanoid then
+                humanoid.Died:Connect(function()
+                    task.wait(2)
+                    if Player.Character == Character then
+                        ApplyRank(Player)
+                    end
+                end)
+            end
         end)
 
         if Player.Character then
-            ApplyRank(Player, Player.Character)
+            task.spawn(function()
+                Player.Character:WaitForChild("Head", 10)
+                ApplyRank(Player)
+                local humanoid = Player.Character:WaitForChild("Humanoid", 10)
+                if humanoid then
+                    humanoid.Died:Connect(function()
+                        task.wait(2)
+                        if Player.Character then
+                            ApplyRank(Player)
+                        end
+                    end)
+                end
+            end)
         end
     end
 end
+
+task.spawn(function()
+    while true do
+        task.wait(1)
+        for _, player in ipairs(Players:GetPlayers()) do
+            if RecognizedPlayers[player] and player.Character then
+                local head = player.Character:FindFirstChild("Head")
+                local tag = player.Character:FindFirstChild("RoyalTag")
+                if head and not tag then
+                    ApplyRank(player)
+                end
+            end
+        end
+    end
+end)
 
 for _, Player in ipairs(Players:GetPlayers()) do
     SetupPlayer(Player)
